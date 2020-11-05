@@ -1,0 +1,25 @@
+- name: Create partition
+  community.general.parted:
+    device: '{{ disk }}'
+    number: '{{ item.part }}'
+    state: present
+    part_start: '{{ item.start }}'
+    part_end: '{{ item.end }}'
+    fs_type: ext4
+    label: gpt
+
+- name: Format partition
+  community.general.filesystem:
+    dev: '{{ disk }}{{ item.part }}'
+    force: yes
+    fstype: ext4
+
+- name: Mount partition
+  ansible.posix.mount:
+    boot: yes
+    state: mounted
+    src: '{{ disk }}{{ item.part }}'
+    path: '/mnt/fast-disks/disk{{ item.part }}'
+    fstype: ext4
+
+

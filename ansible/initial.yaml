@@ -1,0 +1,24 @@
+- hosts: all
+  become: yes
+  tasks:
+    - name: create the 'adama' user
+      user:
+        name: adama
+        append: yes
+        state: present
+        createhome: yes
+        shell: /bin/bash
+
+    - name: allow 'adama' to have passwordless sudo
+      lineinfile:
+        dest: /etc/sudoers
+        line: 'adama ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+
+    - name: set up authorized keys for the maintenance user
+      authorized_key:
+        user: adama
+        key: '{{ item }}'
+        exclusive: yes
+      with_file:
+        - ../keys/id_rsa.pub

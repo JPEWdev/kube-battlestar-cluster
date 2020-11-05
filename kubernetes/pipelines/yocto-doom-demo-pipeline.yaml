@@ -1,0 +1,84 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: run-tkn-pipelines
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: run-tkn-pipelines
+rules:
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelineruns
+    verbs:
+      - get
+      - list
+      - create
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelines
+      - pipelineresources
+    verbs:
+      - get
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: run-tkn-pipelines
+subjects:
+  - kind: ServiceAccount
+    name: run-tkn-pipelines
+roleRef:
+  kind: Role
+  name: run-tkn-pipelines
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: yocto-doom-demo-pipeline
+spec:
+  params:
+    - name: url
+      description: git url to clone
+      type: string
+      default: https://github.com/JPEWdev/yocto-doom-demo.git
+    - name: revision
+      description: git revision to checkout (branch, tag, sha, ref…)
+      type: string
+      default: "main"
+    - name: refSpec
+      description: (optional) git refspec to fetch before checking out revision
+      default: ""
+  tasks:
+    - name: raspberrypi4
+      taskRef:
+        name: tkn
+      params:
+        - name: SCRIPT
+          value: |
+            cat | tee volume.yaml <<HEREDOC
+            metadata:
+              name: build-workspace
+            spec:
+              accessModes:
+                - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 20Gi
+            HEREDOC
+
+            tkn pipeline start yocto-whisk-pipeline \
+              --showlog \
+              -p url="$(params.url)",revision="$(params.revision)",products=$1,mode=development,site=local \
+              --timeout 6h \
+              --workspace name=build-workspace,volumeClaimTemplateFile=volume.yaml
+        - name: ARGS
+          value:
+            - raspberrypi4

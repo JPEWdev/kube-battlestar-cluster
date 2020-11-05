@@ -1,0 +1,170 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: crops-clone
+spec:
+  workspaces:
+    - name: output
+      description: The git repo will be cloned onto the volume backing this workspace
+  params:
+    - name: url
+      description: git url to clone
+      type: string
+    - name: revision
+      description: git revision to checkout (branch, tag, sha, ref…)
+      type: string
+      default: ""
+    - name: refSpec
+      description: (optional) git refspec to fetch before checking out revision
+      default: ""
+    - name: submodules
+      description: defines if the resource should initialize and fetch the submodules
+      type: string
+      default: "true"
+    - name: subdirectory
+      description: subdirectory inside the "output" workspace to clone the git repo into
+      type: string
+      default: ""
+    - name: deleteExisting
+      description: clean out the contents of the repo's destination directory (if it already exists) before trying to clone the repo there
+      type: string
+      default: "true"
+    - name: imageTag
+      description: select the crops image to use
+      type: string
+      default: "ubuntu-20.04-base"
+    - name: verbose
+      description: log the commands used during execution
+      type: string
+      default: "true"
+    - name: httpProxy
+      description: git HTTP proxy server for non-SSL requests
+      type: string
+      default: ""
+    - name: httpsProxy
+      description: git HTTPS proxy server for SSL requests
+      type: string
+      default: ""
+    - name: noProxy
+      description: git no proxy - opt out of proxying HTTP/HTTPS requests
+      type: string
+      default: ""
+    - name: depth
+      description: shallow clone depth
+      type: string
+      default: ""
+
+  results:
+    - name: commit
+      description: The precise commit SHA that was fetched by this Task
+    - name: url
+      description: The precise URL that was fetched by this Task
+  steps:
+    - name: prepare
+      image: joshuawatt/crops:$(params.imageTag)
+      securityContext:
+        runAsUser: 0
+      script: |
+        #!/bin/sh
+        set -eu -o pipefail
+
+        if [[ "$(params.verbose)" == "true" ]] ; then
+          set -x
+        fi
+
+        CHECKOUT_DIR="$(workspaces.output.path)/$(params.subdirectory)"
+
+        if [[ "$(params.deleteExisting)" == "true" ]] ; then
+          # Delete any existing contents of the repo directory if it exists.
+          #
+          # We don't just "rm -rf $CHECKOUT_DIR" because $CHECKOUT_DIR might be "/"
+          # or the root of a mounted volume.
+          if [[ -d "$CHECKOUT_DIR" ]] ; then
+            # Delete non-hidden files and directories
+            rm -rf "$CHECKOUT_DIR"/*
+            # Delete files and directories starting with . but excluding ..
+            rm -rf "$CHECKOUT_DIR"/.[!.]*
+            # Delete files and directories starting with .. plus any other character
+            rm -rf "$CHECKOUT_DIR"/..?*
+          fi
+        fi
+
+        mkdir -p "$CHECKOUT_DIR"
+        chown 1000:1000 "$CHECKOUT_DIR"
+        chmod 700 "$CHECKOUT_DIR"
+
+    - name: clone
+      # TODO: Change this
+      image: joshuawatt/crops:$(params.imageTag)
+      script: |
+        #!/bin/sh
+        set -eu -o pipefail
+
+        if [[ "$(params.verbose)" == "true" ]] ; then
+          set -x
+        fi
+
+        CHECKOUT_DIR="$(workspaces.output.path)/$(params.subdirectory)"
+
+        fetch_submodules() {
+            git -C "$1" submodule init
+            local modules="$(git -C "$1" submodule status | awk '{print $2}')"
+            local p
+            for p in $modules; do
+              mkdir -p "$1/$p"
+              git init "$1/$p"
+            done
+            git -C "$1" submodule foreach 'git remote add origin $(git -C $toplevel config --get submodule.$name.url)'
+            local failed=$(git -C "$1" submodule --quiet foreach 'git fetch origin --depth=$(params.depth) $sha1 > /dev/null || echo $sm_path' | tr '\n' ' ')
+            if [ -n "$failed" ]; then
+              echo "WARNING: The following repos failed a shallow clone: $failed. Performing a full clone"
+              for p in $failed; do
+                git -C "$1/$p" fetch origin
+              done
+            fi
+            git -C "$1" submodule foreach 'git checkout $sha1'
+            for p in $modules; do
+              fetch_submodules "$1/$p"
+            done
+        }
+
+        test -z "$(params.httpProxy)" || export HTTP_PROXY=$(params.httpProxy)
+        test -z "$(params.httpsProxy)" || export HTTPS_PROXY=$(params.httpsProxy)
+        test -z "$(params.noProxy)" || export NO_PROXY=$(params.noProxy)
+
+        if [ -n "$(params.depth)" ]; then
+          git init "$CHECKOUT_DIR"
+          git -C "$CHECKOUT_DIR" remote add origin $(params.url)
+          git -C "$CHECKOUT_DIR" fetch origin --depth=$(params.depth) $(params.revision)
+          if [ -n "$(params.refSpec)" ]; then
+            git -C "$CHECKOUT_DIR" fetch --depth=$(params.depth) "$(params.refSpec)"
+          fi
+        else
+          git clone $(params.url) $CHECKOUT_DIR
+          if [ -n "$(params.refSpec)" ]; then
+            git -C "$CHECKOUT_DIR" fetch "$(params.refSpec)"
+          fi
+        fi
+
+        if [ -n "$(params.revision)" ]; then
+          git -C "$CHECKOUT_DIR" checkout "$(params.revision)"
+        fi
+
+        if $(params.submodules); then
+          if [ -n "$(params.depth)" ]; then
+            fetch_submodules "$CHECKOUT_DIR"
+            git -C "$CHECKOUT_DIR" submodule absorbgitdirs
+          else
+            git -C "$CHECKOUT_DIR" submodule update --init --recursive
+          fi
+        fi
+
+        RESULT_SHA="$(git -C "$CHECKOUT_DIR" rev-parse HEAD)"
+        EXIT_CODE="$?"
+        if [ "$EXIT_CODE" != 0 ] ; then
+          exit $EXIT_CODE
+        fi
+        # ensure we don't add a trailing newline to the result
+        echo -n "$RESULT_SHA" > $(results.commit.path)
+        echo -n "$(params.url)" > $(results.url.path)
+

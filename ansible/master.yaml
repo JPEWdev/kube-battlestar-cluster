@@ -1,0 +1,63 @@
+- hosts: master
+  become: yes
+  tasks:
+    - name: initialize the cluster
+      shell: |
+        kubeadm init --pod-network-cidr=10.244.0.0/16 && touch cluster_initialized.txt
+      args:
+        chdir: $HOME
+        creates: cluster_initialized.txt
+
+    - name: create .kube directory
+      become: yes
+      become_user: '{{ item }}'
+      file:
+        path: $HOME/.kube
+        state: directory
+        mode: 0755
+      with_items:
+        - adama
+        - root
+
+    - name: copy admin.conf to user's kube config
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: "{{ item.home }}/.kube/config"
+        remote_src: true
+        owner: '{{ item.name }}'
+        mode: "0600"
+      with_items:
+        - name: adama
+          home: /home/adama
+        - name: root
+          home: /root
+
+    - name: install Pod network
+      shell: |
+        kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml > network_created.txt && touch pod_network_setup.txt
+      args:
+        chdir: $HOME
+        creates: pod_network_setup.txt
+
+    - name: allow scheduling on the master node
+      shell: |
+        kubectl taint nodes --all node-role.kubernetes.io/master- && touch remove_taint.txt
+      args:
+        chdir: $HOME
+        creates: remove_taint.txt
+
+    - name: install keadm
+      unarchive:
+        src: https://github.com/kubeedge/kubeedge/releases/download/v1.4.0/keadm-v1.4.0-linux-amd64.tar.gz
+        remote_src: true
+        dest: /usr/local/bin
+        extra_opts:
+          - --strip-components=2
+
+    - name: install kubeedge
+      shell: |
+        keadm init --advertise-address="{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}" && touch kubeedge_initialized.txt
+      args:
+        chdir: $HOME
+        creates: kubeedge_initialized.txt
+

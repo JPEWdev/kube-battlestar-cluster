@@ -1,0 +1,94 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: yocto-whisk-pipeline
+spec:
+  params:
+    - name: url
+      description: git url to clone
+      type: string
+    - name: revision
+      description: git revision to checkout (branch, tag, sha, ref…)
+      type: string
+      default: ""
+    - name: refSpec
+      description: (optional) git refspec to fetch before checking out revision
+      default: ""
+    - name: depth
+      description: shallow clone depth
+      type: string
+      default: ""
+    - name: subdirectory
+      description: clone and build in this subdirectory under the build workspace
+      type: string
+      default: ""
+    - name: products
+      description: The product(s) to build
+      type: string
+    - name: mode
+      description: The mode to build
+      type: string
+    - name: site
+      description: The site where build
+      type: string
+    - name: initScript
+      description: The whisk init script
+      type: string
+      default: "./init-build-env"
+    - name: buildDir
+      description: The build directory
+      type: string
+      default: "build"
+    - name: buildTargets
+      description: The bitbake build target
+      type: string
+      default: "all-targets"
+  workspaces:
+    - name: build-workspace
+      description: The build workspace
+  tasks:
+    - name: clone
+      taskRef:
+        name: crops-clone
+      workspaces:
+        - name: output
+          workspace: build-workspace
+      params:
+        - name: url
+          value: "$(params.url)"
+        - name: revision
+          value: "$(params.revision)"
+        - name: refSpec
+          value: "$(params.refSpec)"
+        - name: submodules
+          value: "true"
+        - name: depth
+          value: "$(params.depth)"
+        - name: subdirectory
+          value: "$(params.subdirectory)"
+    - name: build
+      taskRef:
+        name: yocto-whisk-build
+      runAfter:
+        - clone
+      workspaces:
+        - name: build
+          workspace: build-workspace
+      params:
+        - name: products
+          value: "$(params.products)"
+        - name: mode
+          value: "$(params.mode)"
+        - name: site
+          value: "$(params.site)"
+        - name: initScript
+          value: "$(params.initScript)"
+        - name: buildDir
+          value: "$(params.buildDir)"
+        - name: buildTargets
+          value: "$(params.buildTargets)"
+        - name: fetch
+          value: "false"
+        - name: subdirectory
+          value: "$(params.subdirectory)"
+

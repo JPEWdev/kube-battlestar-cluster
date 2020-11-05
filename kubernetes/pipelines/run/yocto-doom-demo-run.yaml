@@ -1,0 +1,56 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: yocto-doom-demo-
+  namespace: default
+spec:
+  pipelineRef:
+    name: yocto-whisk-pipeline
+  params:
+    - name: url
+      value: https://github.com/JPEWdev/yocto-doom-demo.git
+    - name: revision
+      value: main
+    - name: depth
+      value: "1"
+    - name: products
+      value: raspberrypi4
+    - name: mode
+      value: development
+    - name: site
+      value: local
+    - name: subdirectory
+      value: build
+  workspaces:
+    - name: build-workspace
+      subPath: build
+      volumeClaimTemplate:
+        spec:
+          storageClassName: fast-disks
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 20Gi
+  timeout: 6h
+
+  #apiVersion: tekton.dev/v1beta1
+  #kind: PipelineRun
+  #metadata:
+  #  namespace: pipelines
+  #  generateName: yocto-doom-demo-
+  #spec:
+  #  pipelineRef:
+  #    name: yocto-doom-demo-pipeline
+  #  serviceAccountName: run-tkn-pipelines
+  #  workspaces:
+  #    - name: build-workspace
+  #      volumeClaimTemplate:
+  #        spec:
+  #          accessModes:
+  #            - ReadWriteOnce
+  #          resources:
+  #            requests:
+  #              storage: 20Gi
+  #  timeout: 6h
+  #

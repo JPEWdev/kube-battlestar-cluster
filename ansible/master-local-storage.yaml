@@ -1,0 +1,53 @@
+- hosts: master
+  vars:
+    # percentages. Should add to 100
+    disk: /dev/sdb
+
+  become: yes
+  tasks:
+    - name: Read device information (always use unit when probing)
+      community.general.parted:
+        device: '{{ disk }}'
+        unit: GiB
+      register: disk_info
+
+    - name: Remove all partitions from disk
+      community.general.parted:
+        device: '{{ disk }}'
+        number: '{{ item.num }}'
+        state: absent
+      loop: '{{ disk_info.partitions }}'
+
+    - name: Create, format, and mount local storage partitions
+      include_tasks: tasks/master-create-local.yaml
+      loop:
+        - part: 1
+          start: 0%
+          end: 2%
+        - part: 2
+          start: 2%
+          end: 4%
+        - part: 3
+          start: 4%
+          end: 7%
+        - part: 4
+          start: 7%
+          end: 10%
+        - part: 5
+          start: 10%
+          end: 15%
+        - part: 6
+          start: 15%
+          end: 20%
+        - part: 7
+          start: 20%
+          end: 40%
+        - part: 8
+          start: 40%
+          end: 60%
+        - part: 9
+          start: 60%
+          end: 80%
+        - part: 10
+          start: 80%
+          end: 100%

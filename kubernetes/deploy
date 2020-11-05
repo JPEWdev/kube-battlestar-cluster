@@ -1,0 +1,59 @@
+#! /usr/bin/env python3
+
+import argparse
+import yaml
+import pathlib
+import sys
+import subprocess
+
+
+def build_kustomize(d):
+    kustomize = subprocess.run(
+        ["kustomize", "build", d.resolve()], stdout=subprocess.PIPE, check=True
+    )
+    return kustomize.stdout
+
+
+def apply_config(d, label):
+    k = build_kustomize(d)
+    subprocess.run(
+        ["kubectl", "apply", "--prune", "-l", "app=%s" % label, "-f", "-"],
+        check=True,
+        input=k,
+    )
+    return k
+
+
+def delete_config(d, label):
+    k = apply_config(d, label)
+    subprocess.run(["kubectl", "delete", "-f", "-"], check=True, input=k)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Kubernetes application management")
+    parser.add_argument("--delete", action="store_true", help="Delete application")
+    parser.add_argument("--list", action="store_true", help="List applications")
+    parser.add_argument(
+        "app", nargs="*", default=[], help="Only operate on specified applications"
+    )
+    args = parser.parse_args()
+
+    for k in pathlib.Path(".").glob("*/kustomization.yaml"):
+        with k.open("r") as f:
+            data = yaml.load(f, Loader=yaml.Loader)
+
+        app_label = data.get("commonLabels", {}).get("app", "")
+
+        if not app_label or (args.app and app_label not in args.app):
+            continue
+
+        if args.list:
+            print(app_label)
+        elif args.delete:
+            delete_config(k.parent, app_label)
+        else:
+            apply_config(k.parent, app_label)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

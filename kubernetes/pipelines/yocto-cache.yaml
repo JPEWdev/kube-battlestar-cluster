@@ -1,0 +1,104 @@
+# Note - an NFS server isn't really a Kubernetes
+# concept. We're just creating it in Kubernetes
+# for illustration and convenience. In practice,
+# it might be run in some other system.
+
+# Create a service to expose the NFS server
+# to pods inside the cluster.
+
+#kind: Service
+#apiVersion: v1
+#metadata:
+#  name: yocto-nfs-cache-service
+#spec:
+#  clusterIP: 10.100.0.1
+#  selector:
+#    role: nfs
+#  ports:
+#    # Open the ports required by the NFS server
+#    # Port 2049 for TCP
+#    - name: tcp-2049
+#      port: 2049
+#      protocol: TCP
+#
+#    # Port 111 for UDP
+#    - name: udp-111
+#      port: 111
+#      protocol: UDP
+#
+#---
+#apiVersion: v1
+#kind: PersistentVolumeClaim
+#metadata:
+#  name: yocto-nfs-server-persist-claim
+#spec:
+#  accessModes:
+#    - ReadWriteOnce
+#  resources:
+#    requests:
+#      storage: 50G
+#---
+#
+## Run the NFS server image in a pod that is
+## exposed by the service.
+#
+#kind: Pod
+#apiVersion: v1
+#metadata:
+#  name: yocto-nfs-cache-server-pod
+#  labels:
+#    role: nfs
+#spec:
+#  containers:
+#    - name: yocto-nfs-cache-server-container
+#      image: cpuguy83/nfs-server
+#      securityContext:
+#        privileged: true
+#      args:
+#        # Pass the paths to share to the Docker image
+#        - /exports
+#      volumeMounts:
+#        - name: cache
+#          mountPath: /exports
+#  volumes:
+#    - name: cache
+#      persistentVolumeClaim:
+#        claimName: yocto-nfs-server-persist-claim
+#
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: yocto-cache-volume
+spec:
+  storageClassName: ""
+  claimRef:
+    name: yocto-cache-volume-claim
+    namespace: default
+  capacity:
+    storage: 50G
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    server: galactica.local
+    path: "/srv/nfs/yocto-cache"
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+    - proto=tcp
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: yocto-cache-volume-claim
+  namespace: default
+spec:
+  storageClassName: ""
+  volumeName: yocto-cache-volume
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50G
+

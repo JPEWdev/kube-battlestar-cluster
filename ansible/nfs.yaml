@@ -1,0 +1,33 @@
+- hosts: master
+  become: yes
+  tasks:
+    - name: install NFS server
+      apt:
+        name: nfs-kernel-server
+        state: present
+        update_cache: true
+
+    - name: create data directory
+      file:
+        path: /srv/nfs/kubedata
+        state: directory
+        owner: nobody
+        group: nogroup
+
+    - name: create yocto cache
+      file:
+        path: /srv/nfs/yocto-cache
+        state: directory
+        mode: '0777'
+
+    - name: configure exports
+      copy:
+        content: |
+          /srv/nfs/kubedata    *(rw,sync,no_subtree_check,no_root_squash,no_all_squash,insecure)
+          /srv/nfs/yocto-cache *(rw,sync,no_subtree_check,no_root_squash,no_all_squash,insecure)
+        dest: /etc/exports
+
+    - name: refresh exports
+      shell: exportfs -rav
+
+

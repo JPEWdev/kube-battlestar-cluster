@@ -1,0 +1,76 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: yocto-whisk-build
+spec:
+  workspaces:
+    - name: build
+      description: The build workspace
+    - name: cache
+      description: The build cache (sstate and downloads)
+      optional: true
+  params:
+    - name: products
+      description: The product(s) to build
+      type: string
+    - name: mode
+      description: The mode to build
+      type: string
+    - name: site
+      description: The site where build
+      type: string
+    - name: initScript
+      description: The whisk init script
+      type: string
+      default: "./init-build-env"
+    - name: buildDir
+      description: The build directory
+      type: string
+      default: "build"
+    - name: buildTargets
+      description: The bitbake build target
+      type: string
+      default: "all-targets"
+    - name: fetch
+      description: Fetch modules with whisk
+      type: string
+      default: "false"
+    - name: prefetchCommand
+      description: prefetch command. Useful if whisk needs to be fetched prior to fetch layers
+      default: "git submodule update --init whisk"
+    - name: subdirectory
+      description: build in this subdirectory under the build workspace
+      type: string
+      default: ""
+  steps:
+    - name: build
+      image: joshuawatt/crops:ubuntu-20.04-base
+      script: |
+        echo $POD_NAME
+        cd $(workspaces.build.path)/$(params.subdirectory)
+        if $(params.fetch); then
+          $(params.prefetchCommand)
+          FETCH_ARGS="--fetch"
+        else
+          FETCH_ARGS=""
+        fi
+        . $(params.initScript) --product="$(params.products)" --mode="$(params.mode)" --site="$(params.site)" --build="$(params.buildDir)" $FETCH_ARGS
+
+        ls -alh /mnt/cache
+        mkdir -p /mnt/cache/sstate mkdir /mnt/cache/downloads
+        echo 'SSTATE_DIR = "/mnt/cache/sstate"' >> conf/local.conf
+        echo 'DL_DIR = "/mnt/cache/downloads"' >> conf/local.conf
+
+        bitbake -k $(params.buildTargets)
+      volumeMounts:
+        - name: cache
+          mountPath: /mnt/cache
+      env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+  volumes:
+    - name: cache
+      persistentVolumeClaim:
+        claimName: yocto-cache-volume-claim
