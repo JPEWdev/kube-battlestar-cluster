@@ -1,0 +1,60 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tektoncd-cleaner-delete-pr-tr-default
+  #namespace: tekton-pipelines
+subjects:
+  - kind: ServiceAccount
+    name: tekton-cleaner
+    namespace: tekton-pipelines
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-cleaner
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: cleanup-trigger
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          volumes:
+          - name: workspace
+            emptyDir: {}
+          containers:
+          - name: trigger
+            image: curlimages/curl
+            command:
+              - /bin/sh
+            args:
+              - -ce
+              - |
+                cat <<EOF > /workspace/post-body.json
+                {
+                  "trigger-template": "cleanup",
+                  "params": {
+                    "target": {
+                      "namespace": "$NAMESPACE"
+                    },
+                    "cleanup": {
+                        "keep": "$CLEANUP_KEEP"
+                    }
+                  }
+                }
+                EOF
+                curl -d @/workspace/post-body.json $SINK_URL
+            volumeMounts:
+            - mountPath: /workspace
+              name: workspace
+            env:
+              - name: SINK_URL
+                value: "http://el-tekton-cd.tekton-pipelines.svc.cluster.local:8080"
+              - name: NAMESPACE
+                value: "yocto-build"
+              - name: CLEANUP_KEEP
+                value: "1"
+          restartPolicy: Never

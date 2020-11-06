@@ -3,11 +3,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: run-tkn-pipelines
+  namespace: yocto-build
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: run-tkn-pipelines
+  namespace: default
 rules:
   - apiGroups:
       - tekton.dev
@@ -30,6 +32,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: run-tkn-pipelines
+  namespace: yocto-build
 subjects:
   - kind: ServiceAccount
     name: run-tkn-pipelines
@@ -43,6 +46,7 @@ apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
   name: yocto-doom-demo-pipeline
+  namespace: yocto-build
 spec:
   params:
     - name: url
@@ -53,8 +57,9 @@ spec:
       description: git revision to checkout (branch, tag, sha, ref…)
       type: string
       default: "main"
-    - name: refSpec
+    - name: refspec
       description: (optional) git refspec to fetch before checking out revision
+      type: string
       default: ""
   tasks:
     - name: raspberrypi4
@@ -67,16 +72,17 @@ spec:
             metadata:
               name: build-workspace
             spec:
+              storageClassName: fast-disks
               accessModes:
                 - ReadWriteOnce
               resources:
                 requests:
-                  storage: 20Gi
+                  storage: 40Gi
             HEREDOC
 
             tkn pipeline start yocto-whisk-pipeline \
               --showlog \
-              -p url="$(params.url)",revision="$(params.revision)",products=$1,mode=development,site=local \
+              -p url="$(params.url)",revision="$(params.revision)",refspec="$(params.refspec)",products=$1,mode=development,site=local \
               --timeout 6h \
               --workspace name=build-workspace,volumeClaimTemplateFile=volume.yaml
         - name: ARGS

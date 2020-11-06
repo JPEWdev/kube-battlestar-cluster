@@ -1,0 +1,10 @@
+- hosts: edge
+  become: yes
+  tasks:
+    - name: Delete 'pi' user
+      user:
+        name: pi
+        state: absent
+      when: ansible_facts['lsb']['id'] == 'Raspbian'
+
+

@@ -1,0 +1,33 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: yocto-whisk-validate
+  namespace: yocto-build
+spec:
+  workspaces:
+    - name: build
+      description: The build workspace
+  params:
+    - name: subdirectory
+      description: build in this subdirectory under the build workspace
+      type: string
+      default: ""
+    - name: whiskPath
+      description: Path to the whisk command
+      type: string
+      default: "whisk/bin/whisk"
+    - name: whiskConf
+      description: Path to the whisk conf file (whisk.yaml)
+      type: string
+      default: "whisk.yaml"
+  stepTemplate:
+    resources:
+      requests:
+        memory: 1Gi
+        cpu: 1
+  steps:
+    - name: validate
+      image: joshuawatt/crops:ubuntu-20.04-base
+      script: |
+        cd $(workspaces.build.path)/$(params.subdirectory)
+        $(params.whiskPath) validate $(params.whiskConf)

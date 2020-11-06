@@ -1,0 +1,132 @@
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerBinding
+metadata:
+  name: cleanup-details
+  namespace: tekton-pipelines
+spec:
+  params:
+  - name: keep
+    value: $(body.params.cleanup.keep)
+  - name: namespace
+    value: $(body.params.target.namespace)
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerTemplate
+metadata:
+  name: cleanup-runs
+  namespace: tekton-pipelines
+spec:
+  params:
+  - name: namespace
+    description: Namespace to cleanup to in the target cluster
+  - name: clusterResource
+    description: Name of the cluster resource that points to the target cluster
+  - name: keep
+    description: Amount of old resources to keep
+    default: "200"
+  resourcetemplates:
+  - apiVersion: tekton.dev/v1beta1
+    kind: TaskRun
+    metadata:
+      name: cleanup-runs-$(tt.params.namespace)-$(uid)
+    spec:
+      serviceAccountName: tekton-cleaner
+      taskSpec:
+        params:
+        - name: keep
+        - name: namespace
+        steps:
+        - name: cleanup-pr-tr
+          image: gcr.io/tekton-releases/dogfooding/tkn
+          script: |
+            #!/bin/sh
+            set -ex
+            # A safety check, to avoid deleting too much!
+            if [[ $(params.keep) -eq 0 || $(params.keep) == "" ]]; then
+              echo "This task cannot be used to delete *all* resources from a cluster" >&2
+              echo "Please specifcy a value for keep > 0"
+              exit 1
+            fi
+            # Cleanup pipelineruns first, as this will delete tasksruns too
+            tkn pr delete -n $(params.namespace) --keep $(params.keep)
+            # Keep double the amount of tr, for standalone trs
+            tkn tr delete -n $(params.namespace) --keep $(( $(params.keep) * 2 ))
+      params:
+      - name: keep
+        value: $(tt.params.keep)
+      - name: namespace
+        value: $(tt.params.namespace)
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: EventListener
+metadata:
+  name: tekton-cd
+  namespace: tekton-pipelines
+spec:
+  serviceAccountName: tekton-cleaner
+  triggers:
+    - name: cleanup
+      interceptors:
+        - cel:
+            filter: >-
+              'trigger-template' in body &&
+              body['trigger-template'] == 'cleanup'
+      bindings:
+        - ref: cleanup-details
+      template:
+        name: cleanup-runs
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tekton-cleaner
+  namespace: tekton-pipelines
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: tekton-cleaner
+rules:
+  - apiGroups: [""]
+    resources:
+      - namespaces
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "tekton.dev"
+    resources:
+      - pipelineruns
+      - taskruns
+      - pipelineresources
+    verbs:
+      - get
+      - listo
+      - deleteo
+      - create
+  - apiGroups:
+      - triggers.tekton.dev
+    resources:
+      - eventlistenerso
+      - triggerbindings
+      - triggertemplates
+    verbs:
+      - get
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tektoncd-cleaner-delete-pr-tr-default
+  namespace: tekton-pipelines
+subjects:
+  - kind: ServiceAccount
+    name: tekton-cleaner
+    namespace: tekton-pipelines
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-cleaner
+

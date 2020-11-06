@@ -1,0 +1,115 @@
+- hosts: galactica.local
+  become: yes
+  tasks:
+    - name: bind mount state directories
+      # See https://github.com/kubernetes/kubernetes/issues/94335
+      ansible.posix.mount:
+        src: /var/lib/kubelet
+        path: /var/lib/kubelet
+        opts: bind
+        state: mounted
+        fstype: none
+
+    - name: initialize the cluster
+      shell: |
+        set -eu
+        kubeadm init --pod-network-cidr=10.244.0.0/16
+        touch cluster_initialized.txt
+        # We could probably figure out when this is done by parsing some JSON
+        # from kubectl... or just sleep for a few minutes
+        sleep 120
+      args:
+        chdir: $HOME
+        creates: cluster_initialized.txt
+
+    - name: create .kube directory
+      become: yes
+      become_user: '{{ item }}'
+      file:
+        path: $HOME/.kube
+        state: directory
+        mode: 0755
+      with_items:
+        - adama
+        - root
+
+    - name: copy admin.conf to user's kube config
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: "{{ item.home }}/.kube/config"
+        remote_src: true
+        owner: '{{ item.name }}'
+        mode: "0600"
+      with_items:
+        - name: adama
+          home: /home/adama
+        - name: root
+          home: /root
+
+    - name: install Pod network
+      shell: |
+        set -eu
+        kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+        #kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+        touch pod_network_setup.txt
+        sleep 5
+        while kubectl get pods -A --no-headers -o custom-columns=':{.status.phase}' | grep -v "Running"; do
+          sleep 10
+        done
+      args:
+        chdir: $HOME
+        creates: pod_network_setup.txt
+
+    - name: allow scheduling on the master node
+      shell: |
+        set -eu
+        kubectl taint nodes --all node-role.kubernetes.io/master-
+        touch remove_taint.txt
+      args:
+        chdir: $HOME
+        creates: remove_taint.txt
+
+        #    - name: install keadm
+        #      unarchive:
+        #        src: https://github.com/kubeedge/kubeedge/releases/download/v1.4.0/keadm-v1.4.0-linux-amd64.tar.gz
+        #        remote_src: true
+        #        dest: /usr/local/bin
+        #        extra_opts:
+        #          - --strip-components=2
+        #      args:
+        #        creates: /usr/local/bin/keadm
+        #
+        #    - name: Check kubeedge needs to be installed
+        #      stat:
+        #        path: "$HOME/kubeedge_initialized.txt"
+        #      register: kubeedge
+
+      #    - name: "Install kubeedge"
+      #      block:
+      #        # Not sure if the reboots are needed... kubeedge seems to have trouble
+      #        # otherwise
+      #        - name: Reboot
+      #          reboot:
+      #            reboot_timeout: 300
+      #
+      #        - name: install kubeedge
+      #          shell: |
+      #            set -eu
+      #            sleep 240
+      #            keadm init --advertise-address={{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}
+      #            sleep 240
+      #          args:
+      #            chdir: $HOME
+      #            creates: kubeedge_initialized.txt
+      #
+      #        - name: Reboot
+      #          reboot:
+      #            reboot_timeout: 300
+      #
+      #        - name: Create check file
+      #          file:
+      #            path: "$HOME/kubeedge_initialized.txt"
+      #            state: touch
+      #
+      #      when: not kubeedge.stat.exists
+

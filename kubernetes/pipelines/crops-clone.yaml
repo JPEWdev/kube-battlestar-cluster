@@ -2,6 +2,7 @@ apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: crops-clone
+  namespace: yocto-build
 spec:
   workspaces:
     - name: output
@@ -14,8 +15,9 @@ spec:
       description: git revision to checkout (branch, tag, sha, ref…)
       type: string
       default: ""
-    - name: refSpec
+    - name: refspec
       description: (optional) git refspec to fetch before checking out revision
+      type: string
       default: ""
     - name: submodules
       description: defines if the resource should initialize and fetch the submodules
@@ -29,10 +31,10 @@ spec:
       description: clean out the contents of the repo's destination directory (if it already exists) before trying to clone the repo there
       type: string
       default: "true"
-    - name: imageTag
+    - name: image
       description: select the crops image to use
       type: string
-      default: "ubuntu-20.04-base"
+      default: "crops/yocto:ubuntu-20.04-base"
     - name: verbose
       description: log the commands used during execution
       type: string
@@ -53,15 +55,25 @@ spec:
       description: shallow clone depth
       type: string
       default: ""
+    - name: submoduleRemote
+      description: Use submodule remote tracking branches instead of recorded SHA-1
+      type: string
+      default: "false"
 
   results:
     - name: commit
       description: The precise commit SHA that was fetched by this Task
     - name: url
       description: The precise URL that was fetched by this Task
+
+  stepTemplate:
+    resources:
+      requests:
+        memory: 1Gi
+        cpu: 1
   steps:
     - name: prepare
-      image: joshuawatt/crops:$(params.imageTag)
+      image: $(params.image)
       securityContext:
         runAsUser: 0
       script: |
@@ -94,8 +106,7 @@ spec:
         chmod 700 "$CHECKOUT_DIR"
 
     - name: clone
-      # TODO: Change this
-      image: joshuawatt/crops:$(params.imageTag)
+      image: $(params.image)
       script: |
         #!/bin/sh
         set -eu -o pipefail
@@ -116,7 +127,7 @@ spec:
             done
             git -C "$1" submodule foreach 'git remote add origin $(git -C $toplevel config --get submodule.$name.url)'
             local failed=$(git -C "$1" submodule --quiet foreach 'git fetch origin --depth=$(params.depth) $sha1 > /dev/null || echo $sm_path' | tr '\n' ' ')
-            if [ -n "$failed" ]; then
+            if [[ -n "$failed" ]]; then
               echo "WARNING: The following repos failed a shallow clone: $failed. Performing a full clone"
               for p in $failed; do
                 git -C "$1/$p" fetch origin
@@ -132,39 +143,38 @@ spec:
         test -z "$(params.httpsProxy)" || export HTTPS_PROXY=$(params.httpsProxy)
         test -z "$(params.noProxy)" || export NO_PROXY=$(params.noProxy)
 
-        if [ -n "$(params.depth)" ]; then
+        if [[ -n "$(params.depth)" ]]; then
           git init "$CHECKOUT_DIR"
           git -C "$CHECKOUT_DIR" remote add origin $(params.url)
           git -C "$CHECKOUT_DIR" fetch origin --depth=$(params.depth) $(params.revision)
-          if [ -n "$(params.refSpec)" ]; then
-            git -C "$CHECKOUT_DIR" fetch --depth=$(params.depth) "$(params.refSpec)"
+          if [[ -n "$(params.refspec)" ]]; then
+            git -C "$CHECKOUT_DIR" fetch --depth=$(params.depth) "$(params.refspec)"
           fi
         else
           git clone $(params.url) $CHECKOUT_DIR
-          if [ -n "$(params.refSpec)" ]; then
-            git -C "$CHECKOUT_DIR" fetch "$(params.refSpec)"
+          if [[ -n "$(params.refspec)" ]]; then
+            git -C "$CHECKOUT_DIR" fetch "$(params.refspec)"
           fi
         fi
 
-        if [ -n "$(params.revision)" ]; then
+        if [[ -n "$(params.revision)" ]]; then
           git -C "$CHECKOUT_DIR" checkout "$(params.revision)"
         fi
 
-        if $(params.submodules); then
-          if [ -n "$(params.depth)" ]; then
+        if [[ "$(params.submodules)" == "true" ]]; then
+          if [[ -n "$(params.depth)" ]] && [[ "$(params.submoduleRemote)" != "true" ]]; then
             fetch_submodules "$CHECKOUT_DIR"
             git -C "$CHECKOUT_DIR" submodule absorbgitdirs
           else
-            git -C "$CHECKOUT_DIR" submodule update --init --recursive
+            EXTRA_ARGS=""
+            if [[ "$(params.submoduleRemote)" == "true" ]]; then
+              EXTRA_ARGS="--remote"
+            fi
+            git -C "$CHECKOUT_DIR" submodule update --init --recursive $EXTRA_ARGS
           fi
         fi
 
-        RESULT_SHA="$(git -C "$CHECKOUT_DIR" rev-parse HEAD)"
-        EXIT_CODE="$?"
-        if [ "$EXIT_CODE" != 0 ] ; then
-          exit $EXIT_CODE
-        fi
         # ensure we don't add a trailing newline to the result
-        echo -n "$RESULT_SHA" > $(results.commit.path)
+        echo -n "$(git -C "$CHECKOUT_DIR" rev-parse HEAD)" > $(results.commit.path)
         echo -n "$(params.url)" > $(results.url.path)
 

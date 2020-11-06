@@ -1,0 +1,85 @@
+- hosts: all
+  become: yes
+  tasks:
+    - name: load bridge kernel module
+      community.general.modprobe:
+        name: bridge
+        state: present
+
+    - name: enable kernel bridge module on boot
+      copy:
+        dest: /etc/modules-load.d/k8s-bridge.conf
+        content: |
+          bridge
+
+    - name: load br_netfilter kernel module
+      community.general.modprobe:
+        name: br_netfilter
+        state: present
+
+    - name: enable kernel netfilter module on boot
+      copy:
+        dest: /etc/modules-load.d/k8s-netfilter.conf
+        content: |
+          br_netfilter
+
+    - name: bridge iptable
+      ansible.posix.sysctl:
+        name: net.bridge.bridge-nf-call-iptables
+        value: '1'
+        sysctl_file: /etc/sysctl.d/k8s.conf
+
+    - name: bridge ip6table
+      ansible.posix.sysctl:
+        name: net.bridge.bridge-nf-call-ip6tables
+        value: '1'
+        sysctl_file: /etc/sysctl.d/k8s.conf
+
+    - name: Disable SWAP since kubernetes can't work with swap enabled (1/2)
+      shell: |
+        swapoff -a
+
+    - name: Disable SWAP in fstab since kubernetes can't work with swap enabled (2/2)
+      replace:
+        path: /etc/fstab
+        regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+        replace: '# \1'
+
+    - name: Disable swap file
+      shell: |
+        dphys-swapfile swapoff
+      when: ansible_facts['lsb']['id'] == 'Raspbian'
+
+- hosts: nodes
+  become: yes
+  tasks:
+    - name: install APT Transport HTTPS
+      apt:
+        name: apt-transport-https
+        state: present
+
+    - name: add Kubernetes apt-key
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+
+    - name: add Kubernetes' APT repository
+      apt_repository:
+       repo: deb http://apt.kubernetes.io/ kubernetes-xenial main
+       state: present
+       filename: 'kubernetes'
+
+    - name: install Kubernetes tools
+      apt:
+        pkg:
+          - kubelet=1.19.0-00
+          - kubeadm=1.19.0-00
+          - kubectl=1.19.0-00
+          - jq
+        state: present
+        update_cache: true
+        force: true
+
+    - name: mark packages
+      shell: apt-mark hold kubelet kubeadm kubectl
+

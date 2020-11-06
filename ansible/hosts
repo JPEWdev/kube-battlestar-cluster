@@ -1,5 +1,19 @@
+[nodes]
+galactica.local
+starbuck.local
+
 [masters]
-master ansible_host=galactica.local ansible_user=adama
+galactica.local
+
+[workers]
+starbuck.local
+
+[edge]
+#pirate-controller.local
+
+[raspberry-pi]
+#pirate-controller.local
 
 [all:vars]
 ansible_python_interpreter=/usr/bin/python3
+ansible_user=adama

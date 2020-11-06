@@ -22,3 +22,10 @@
         exclusive: yes
       with_file:
         - ../keys/id_rsa.pub
+
+    - name: install avahi daemon
+      apt:
+        name: avahi-daemon
+        state: present
+        update_cache: true
+

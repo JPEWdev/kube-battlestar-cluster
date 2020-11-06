@@ -1,0 +1,126 @@
+- hosts: galactica.local
+  vars:
+    disk: /dev/sdb
+    num_mounts: 10
+
+  become: yes
+  tasks:
+    - name: "Partition {{ disk }}"
+      community.general.parted:
+        device: '{{ disk }}'
+        number: 1
+        state: present
+        part_start: 0%
+        part_end: 100%
+        fs_type: ext4
+        label: gpt
+
+    - name: "Format partition {{ disk }}1"
+      community.general.filesystem:
+        dev: '{{ disk }}1'
+        fstype: ext4
+        resizefs: yes
+
+    - name: "Mount partition {{ disk }}1"
+      ansible.posix.mount:
+        src: '{{ disk }}1'
+        path: '/mnt/local-disks/{{ disk }}'
+        state: mounted
+        fstype: ext4
+        boot: yes
+
+    - name: "Create mount location {{ item }}"
+      file:
+        path: '/mnt/local-disks/{{ disk }}/{{ item }}'
+        state: directory
+        mode: 0755
+      loop: "{{ range( num_mounts ) | list }}"
+
+    - name: "Bind mount disk {{ item }}"
+      ansible.posix.mount:
+        src: '/mnt/local-disks/{{ disk }}/{{ item }}'
+        path: '/mnt/fast-disks/{{ item }}'
+        state: mounted
+        fstype: none
+        opts: bind
+        boot: yes
+      loop: "{{ range( num_mounts ) | list }}"
+
+- hosts: starbuck.local
+  vars:
+    disk: /dev/mapper/ubuntu--vg-lv--0
+    num_mounts: 10
+
+  become: yes
+  tasks:
+    #- name: "Format partition {{ disk }}1"
+    #  community.general.filesystem:
+    #    dev: '{{ disk }}'
+    #    fstype: ext4
+    #    resizefs: yes
+
+    - name: "Mount partition {{ disk }}1"
+      ansible.posix.mount:
+        src: '{{ disk }}'
+        path: '/mnt/local-disks/{{ disk }}'
+        state: mounted
+        fstype: ext4
+        boot: yes
+
+    - name: "Create mount location {{ item }}"
+      file:
+        path: '/mnt/local-disks/{{ disk }}/{{ item }}'
+        state: directory
+        mode: 0755
+      loop: "{{ range( num_mounts ) | list }}"
+
+    - name: "Bind mount disk {{ item }}"
+      ansible.posix.mount:
+        src: '/mnt/local-disks/{{ disk }}/{{ item }}'
+        path: '/mnt/fast-disks/{{ item }}'
+        state: mounted
+        fstype: none
+        opts: bind
+        boot: yes
+      loop: "{{ range( num_mounts ) | list }}"
+
+    #    - name: Check if partitioning is needed
+    #      stat:
+    #        path: "$HOME/local-storage{{ disk.replace('/', '_') }}.txt"
+    #      register: local_stat
+    #
+    #    - name: "Reformat {{ disk }}"
+    #      block:
+    #        - name: "Read device information for {{ disk }}"
+    #          community.general.parted:
+    #            device: '{{ disk }}'
+    #            unit: GiB
+    #          register: disk_info
+    #
+    #        - name: "Remove all partitions from {{ disk }}"
+    #          community.general.parted:
+    #            device: '{{ disk }}'
+    #            number: '{{ item.num }}'
+    #            state: absent
+    #          loop: '{{ disk_info.partitions }}'
+    #
+    #        - name: "Create, format, and mount local storage partitions for {{ disk }}"
+    #          include_tasks: ../tasks/create-partition.yaml
+    #          loop:
+    #            - {part: 1,  start: 0%,  end: 2%  }
+    #            - {part: 2,  start: 2%,  end: 4%  }
+    #            - {part: 3,  start: 4%,  end: 7%  }
+    #            - {part: 4,  start: 7%,  end: 10% }
+    #            - {part: 5,  start: 10%, end: 15% }
+    #            - {part: 6,  start: 15%, end: 20% }
+    #            - {part: 7,  start: 20%, end: 40% }
+    #            - {part: 8,  start: 40%, end: 60% }
+    #            - {part: 9,  start: 60%, end: 80% }
+    #            - {part: 10, start: 80%, end: 100%}
+    #
+    #        - name: Create check file
+    #          file:
+    #            path: "$HOME/local-storage{{ disk.replace('/', '_') }}.txt"
+    #            state: touch
+    #
+    #      when: not local_stat.stat.exists

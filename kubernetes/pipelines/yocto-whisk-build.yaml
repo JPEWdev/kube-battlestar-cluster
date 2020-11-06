@@ -2,6 +2,7 @@ apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: yocto-whisk-build
+  namespace: yocto-build
 spec:
   workspaces:
     - name: build
@@ -19,6 +20,10 @@ spec:
     - name: site
       description: The site where build
       type: string
+    - name: version
+      description: The version to build against
+      type: string
+      default: default
     - name: initScript
       description: The whisk init script
       type: string
@@ -37,31 +42,62 @@ spec:
       default: "false"
     - name: prefetchCommand
       description: prefetch command. Useful if whisk needs to be fetched prior to fetch layers
+      type: string
       default: "git submodule update --init whisk"
     - name: subdirectory
       description: build in this subdirectory under the build workspace
       type: string
       default: ""
+    - name: nice
+      description: build niceness
+      type: string
+      default: "10"
+  stepTemplate:
+    resources:
+      requests:
+        cpu: "6"
+        memory: "8Gi"
+      limits:
+        cpu: "6"
+        memory: "8Gi"
   steps:
     - name: build
       image: joshuawatt/crops:ubuntu-20.04-base
       script: |
+        NUM_CPUS="8"
+
+        renice -n $(params.nice) -p $$$$
+
         echo $POD_NAME
         cd $(workspaces.build.path)/$(params.subdirectory)
-        if $(params.fetch); then
+        if [[ $(params.fetch) == "true" ]]; then
           $(params.prefetchCommand)
           FETCH_ARGS="--fetch"
         else
           FETCH_ARGS=""
         fi
-        . $(params.initScript) --product="$(params.products)" --mode="$(params.mode)" --site="$(params.site)" --build="$(params.buildDir)" $FETCH_ARGS
+        . $(params.initScript) \
+          --product="$(params.products)" \
+          --mode="$(params.mode)" \
+          --site="$(params.site)" \
+          --version="$(params.version)" \
+          --build="$(params.buildDir)" \
+          $FETCH_ARGS
 
-        ls -alh /mnt/cache
-        mkdir -p /mnt/cache/sstate mkdir /mnt/cache/downloads
-        echo 'SSTATE_DIR = "/mnt/cache/sstate"' >> conf/local.conf
-        echo 'DL_DIR = "/mnt/cache/downloads"' >> conf/local.conf
+        mkdir -p /mnt/cache/sstate
+        mkdir -p /mnt/cache/downloads
 
-        bitbake -k $(params.buildTargets)
+        cat >> conf/local.conf <<HEREDOC
+        SSTATE_DIR = "/mnt/cache/sstate"
+        DL_DIR = "/mnt/cache/downloads"
+
+        PARALLEL_MAKE = "-j $NUM_CPUS"
+        BB_NUMBER_THREADS = "$NUM_CPUS"
+
+        BB_TASK_NICE_LEVEL = "$(params.nice)"
+        HEREDOC
+
+        bitbake $(params.buildTargets)
       volumeMounts:
         - name: cache
           mountPath: /mnt/cache

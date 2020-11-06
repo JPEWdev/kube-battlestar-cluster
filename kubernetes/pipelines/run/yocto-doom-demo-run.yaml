@@ -1,8 +1,16 @@
+{%- for product in ["raspberrypi4", "raspberrypi3", "rockpi4", "tinkerboard", "qemux86-64"] %}
+{%- for version in ["default", "hardknott"] %}
+{%- for upstream in [false, true] %}
+---
 apiVersion: tekton.dev/v1beta1
 kind: PipelineRun
 metadata:
-  generateName: yocto-doom-demo-
-  namespace: default
+  generateName: {{ product }}-{{ version }}{{ "-upstream" if upstream else "" }}-
+  namespace: yocto-build
+  labels:
+    product: {{ product }}
+    version: {{ version }}
+    upstream: "{{ 'true' if upstream else 'false' }}"
 spec:
   pipelineRef:
     name: yocto-whisk-pipeline
@@ -14,13 +22,15 @@ spec:
     - name: depth
       value: "1"
     - name: products
-      value: raspberrypi4
+      value: "{{ product }}"
     - name: mode
       value: development
     - name: site
-      value: local
-    - name: subdirectory
-      value: build
+      value: tekton
+    - name: version
+      value: "{{ version }}"
+    - name: submoduleRemote
+      value: "{{ 'true' if upstream else 'false' }}"
   workspaces:
     - name: build-workspace
       subPath: build
@@ -31,26 +41,14 @@ spec:
             - ReadWriteOnce
           resources:
             requests:
-              storage: 40Gi
-  timeout: 6h
-
-  #apiVersion: tekton.dev/v1beta1
-  #kind: PipelineRun
-  #metadata:
-  #  namespace: pipelines
-  #  generateName: yocto-doom-demo-
-  #spec:
-  #  pipelineRef:
-  #    name: yocto-doom-demo-pipeline
-  #  serviceAccountName: run-tkn-pipelines
-  #  workspaces:
-  #    - name: build-workspace
-  #      volumeClaimTemplate:
-  #        spec:
-  #          accessModes:
-  #            - ReadWriteOnce
-  #          resources:
-  #            requests:
-  #              storage: 20Gi
-  #  timeout: 6h
-  #
+              storage: 32Gi
+  timeout: 10h
+  podTemplate:
+    priorityClassName: yocto-build-priority
+  taskRunSpecs:
+    - pipelineTaskName: clone
+      taskPodTemplate:
+        priorityClassName: yocto-clone-priority
+{%- endfor %}
+{%- endfor %}
+{%- endfor %}

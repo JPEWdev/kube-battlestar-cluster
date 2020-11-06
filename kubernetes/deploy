@@ -5,28 +5,60 @@ import yaml
 import pathlib
 import sys
 import subprocess
+import collections
 
 
-def build_kustomize(d):
-    kustomize = subprocess.run(
-        ["kustomize", "build", d.resolve()], stdout=subprocess.PIPE, check=True
-    )
-    return kustomize.stdout
+
+class App(object):
+    APP_LABEL = "battlestar/app"
+
+    def __init__(self, config, data):
+        self.config = config
+        self.data = data
+        self.label = data.get("commonLabels", {}).get(self.APP_LABEL, "")
+
+    def build(self):
+        kustomize = subprocess.run(
+            ["kustomize", "build", "--reorder=none", self.config.parent.resolve()],
+            stdout=subprocess.PIPE,
+            check=True,
+        )
+        return kustomize.stdout
+
+    def apply(self):
+        k = self.build()
+        if self.label:
+            label_filter = [
+                "--prune",
+                "-l",
+                "%s=%s" % (self.APP_LABEL, self.label),
+            ]
+        else:
+            label_filter = []
+
+        subprocess.run(
+            [
+                "kubectl",
+                "apply",
+                "-f",
+                "-",
+            ]
+            + label_filter,
+            check=True,
+            input=k,
+        )
+        return k
+
+    def delete(self):
+        k = self.build()
+        subprocess.run(["kubectl", "delete", "-f", "-"], check=True, input=k)
 
 
-def apply_config(d, label):
-    k = build_kustomize(d)
-    subprocess.run(
-        ["kubectl", "apply", "--prune", "-l", "app=%s" % label, "-f", "-"],
-        check=True,
-        input=k,
-    )
-    return k
+def parse_kustomize(k):
+    with k.open("r") as f:
+        data = yaml.load(f, Loader=yaml.Loader)
 
-
-def delete_config(d, label):
-    k = apply_config(d, label)
-    subprocess.run(["kubectl", "delete", "-f", "-"], check=True, input=k)
+    return App(k, data)
 
 
 def main():
@@ -38,21 +70,38 @@ def main():
     )
     args = parser.parse_args()
 
+    apps = {}
+
     for k in pathlib.Path(".").glob("*/kustomization.yaml"):
-        with k.open("r") as f:
-            data = yaml.load(f, Loader=yaml.Loader)
-
-        app_label = data.get("commonLabels", {}).get("app", "")
-
-        if not app_label or (args.app and app_label not in args.app):
+        app = parse_kustomize(k)
+        if not app.label:
             continue
 
-        if args.list:
-            print(app_label)
+        if app.label in apps:
+            print(
+                "Error: Multiple applications using label '%s': %s and %s"
+                % (app.label, apps[app.label].config, app.config)
+            )
+            return 1
+
+        apps[app.label] = app
+
+    main = parse_kustomize(pathlib.Path("./kustomization.yaml"))
+
+    if args.list:
+        for label in sorted(apps.keys()):
+            print(label)
+    else:
+        if args.app:
+            for a in args.app:
+                if args.delete:
+                    apps[a].delete()
+                else:
+                    apps[a].apply()
         elif args.delete:
-            delete_config(k.parent, app_label)
+            main.delete()
         else:
-            apply_config(k.parent, app_label)
+            main.apply()
 
 
 if __name__ == "__main__":

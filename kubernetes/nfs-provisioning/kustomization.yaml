@@ -4,7 +4,7 @@ kind: Kustomization
 namespace: nfs-provisioning
 
 commonLabels:
-  app: nfs-provisioning
+  battlestar/app: nfs-provisioning
 
 resources:
   - namespace.yaml

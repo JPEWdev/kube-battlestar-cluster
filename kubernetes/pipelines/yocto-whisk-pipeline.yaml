@@ -2,6 +2,7 @@ apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
   name: yocto-whisk-pipeline
+  namespace: yocto-build
 spec:
   params:
     - name: url
@@ -11,8 +12,9 @@ spec:
       description: git revision to checkout (branch, tag, sha, ref…)
       type: string
       default: ""
-    - name: refSpec
+    - name: refspec
       description: (optional) git refspec to fetch before checking out revision
+      type: string
       default: ""
     - name: depth
       description: shallow clone depth
@@ -31,6 +33,10 @@ spec:
     - name: site
       description: The site where build
       type: string
+    - name: version
+      description: The version to build against
+      type: string
+      default: default
     - name: initScript
       description: The whisk init script
       type: string
@@ -43,6 +49,11 @@ spec:
       description: The bitbake build target
       type: string
       default: "all-targets"
+    - name: submoduleRemote
+      description: Use submodule remote tracking branches instead of recorded SHA-1
+      type: string
+      default: "false"
+
   workspaces:
     - name: build-workspace
       description: The build workspace
@@ -58,19 +69,34 @@ spec:
           value: "$(params.url)"
         - name: revision
           value: "$(params.revision)"
-        - name: refSpec
-          value: "$(params.refSpec)"
+        - name: refspec
+          value: "$(params.refspec)"
         - name: submodules
           value: "true"
         - name: depth
           value: "$(params.depth)"
         - name: subdirectory
           value: "$(params.subdirectory)"
+        - name: image
+          value: "joshuawatt/crops:ubuntu-20.04-base"
+        - name: submoduleRemote
+          value: "$(params.submoduleRemote)"
+    - name: validate
+      taskRef:
+        name: yocto-whisk-validate
+      runAfter:
+        - clone
+      workspaces:
+        - name: build
+          workspace: build-workspace
+      params:
+        - name: subdirectory
+          value: "$(params.subdirectory)"
     - name: build
       taskRef:
         name: yocto-whisk-build
       runAfter:
-        - clone
+        - validate
       workspaces:
         - name: build
           workspace: build-workspace
@@ -81,6 +107,8 @@ spec:
           value: "$(params.mode)"
         - name: site
           value: "$(params.site)"
+        - name: version
+          value: "$(params.version)"
         - name: initScript
           value: "$(params.initScript)"
         - name: buildDir

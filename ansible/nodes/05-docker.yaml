@@ -1,0 +1,67 @@
+- hosts: all
+  become: yes
+  tasks:
+    - name: Enable memory cgroup
+      block:
+        - name: Set boot command line
+          lineinfile:
+            path: /boot/cmdline.txt
+            regexp: '^(?!cgroup_enable=cpuset cgroup_enable=memory cgroup_memory=1 swapaccount=1)(.*)'
+            line: 'cgroup_enable=cpuset cgroup_enable=memory cgroup_memory=1 swapaccount=1 \1'
+            backrefs: yes
+          register: boot_cmdline
+
+        - name: Reboot
+          reboot:
+            reboot_timeout: 300
+          when: boot_cmdline.changed
+      when: ansible_facts['lsb']['id'] == 'Raspbian'
+
+    - name: install Docker
+      apt:
+        name: docker.io
+        state: present
+        update_cache: true
+
+
+- hosts: nodes
+  become: yes
+  tasks:
+    # Edge nodes do not need to use systemd for cgroups?
+    - name: make docker systemd directory
+      file:
+        path: /etc/systemd/system/docker.service.d
+        state: directory
+
+    - name: Create docker config
+      command: touch /etc/docker/daemon.json
+      args:
+        creates: /etc/docker/daemon.json
+
+    - name: Check docker config
+      shell: cat /etc/docker/daemon.json
+      register: docker_conf
+
+    - name: Configure docker to use systemd
+      block:
+        - name: configure docker to use systemd
+          copy:
+            content: |
+              {
+                "exec-opts": ["native.cgroupdriver=systemd"],
+                "log-driver": "json-file",
+                "log-opts": {
+                  "max-size": "100m"
+                },
+                "storage-driver": "overlay2"
+              }
+            dest: /etc/docker/daemon.json
+
+        - name: restart docker
+          systemd:
+            name: docker
+            daemon_reload: yes
+            state: reloaded
+            enabled: true
+      when: docker_conf.stdout.find("native.cgroupdriver=systemd") == -1
+
