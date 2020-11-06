@@ -31,7 +31,7 @@ spec:
             - ReadWriteOnce
           resources:
             requests:
-              storage: 20Gi
+              storage: 40Gi
   timeout: 6h
 
   #apiVersion: tekton.dev/v1beta1
