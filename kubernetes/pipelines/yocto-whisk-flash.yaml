@@ -1,0 +1,57 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: yocto-whisk-flash
+  namespace: yocto-build
+spec:
+  workspaces:
+    - name: build
+      description: The build workspace
+  params:
+    - name: initScript
+      description: The whisk init script
+      type: string
+      default: "./init-build-env"
+    - name: subdirectory
+      description: build in this subdirectory under the build workspace
+      type: string
+      default: ""
+    - name: flashTarget
+      description: The bitbake image recipe to flash
+      type: string
+      default: ""
+    - name: imageExtension
+      description: The image extension
+      type: string
+      default: ".wic.bz2"
+  stepTemplate:
+    resources:
+      requests:
+        cpu: "1"
+        memory: "2Gi"
+  steps:
+    - name: get-environment
+      image: joshuawatt/crops:ubuntu-20.04-base
+      script: |
+        NUM_CPUS="1"
+
+        cd $(workspaces.build.path)/$(params.subdirectory)
+        . $(params.initScript)
+        bitbake -e $(params.flashTarget) > $(workspaces.build.path)/env.txt
+
+    - name: flash
+      image: joshuawatt/labgrid-client:2020.12.3.2
+      script: |
+        SSH_HOME=/root
+        . $(workspaces.build.path)/labgrid.env
+
+        eval `grep '^IMAGE_LINK_NAME' $(workspaces.build.path)/env.txt`
+        eval `grep '^DEPLOY_DIR_IMAGE' $(workspaces.build.path)/env.txt`
+
+        labgrid-client power off
+        labgrid-client sd-mux host
+        labgrid-client write-image --mode=bmaptool $DEPLOY_DIR_IMAGE/$IMAGE_LINK_NAME$(params.imageExtension)
+        labgrid-client sd-mux dut
+        labgrid-client power on
+
+

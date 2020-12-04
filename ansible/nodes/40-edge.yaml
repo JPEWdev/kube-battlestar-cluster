@@ -1,0 +1,374 @@
+- hosts: galactica.local
+  become: yes
+  gather_facts: true
+  tasks:
+    - name: install keadm
+      unarchive:
+        src: https://github.com/kubeedge/kubeedge/releases/download/v1.5.0/keadm-v1.5.0-linux-amd64.tar.gz
+        remote_src: true
+        dest: /usr/local/bin
+        extra_opts:
+          - --strip-components=2
+      args:
+        creates: /usr/local/bin/keadm
+
+    - name: install kubeedge
+      shell: |
+        set -eu
+        keadm init --advertise-address={{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}
+        sleep 30
+        touch "$HOME/kubeedge_initialized.txt"
+      args:
+        chdir: $HOME
+        creates: "$HOME/kubeedge_initialized.txt"
+
+    - name: Create cloudcore service
+      copy:
+        dest: /etc/systemd/system/cloudcore.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=cloudcore.service
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/local/bin/cloudcore
+          Restart=on-failure
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Start cloudcore
+      systemd:
+        name: cloudcore.service
+        daemon_reload: yes
+        state: started
+        enabled: yes
+
+    - name: get token
+      shell: keadm gettoken
+      register: gettoken_command_raw
+
+    - name: set token
+      set_fact:
+        join_token: "{{ gettoken_command_raw.stdout_lines[0] }}"
+        master_ip: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
+
+    - name: Dump known hosts
+      shell: |
+        kubectl get secret -n yocto-build labgrid-ssh-key -o jsonpath='{.data.known_hosts}' | base64 -d > $HOME/labgrid_hosts
+
+- hosts: edge
+  become: yes
+  serial: 1
+  tasks:
+    - name: Get ssh host key
+      shell: |
+        cat /etc/ssh/ssh_host_ecdsa_key.pub | cut -f1,2 -d' '
+      become: no
+      register: hostkey
+
+    - name: Ensure host key in known_hosts
+      lineinfile:
+        path: ~/labgrid_hosts
+        regexp: '^{{ inventory_hostname }}'
+        line: '{{ inventory_hostname }} {{ hostkey.stdout }}'
+        insertafter: EOF
+      delegate_to: galactica.local
+
+    - name: Add host to secret annotations
+      shell: |
+        kubectl patch secret -n yocto-build labgrid-ssh-key -p '{"metadata":{"annotations":{"tekton.dev/git-{{ inventory_hostname }}": "{{ inventory_hostname }}"}}}'
+      delegate_to: galactica.local
+
+- hosts: edge
+  become: yes
+  tasks:
+    - name: Enable IPv4 forwarding for EdgeMesh
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_forward
+        value: '1'
+        sysctl_file: /etc/sysctl.d/kubeedge.conf
+
+    - name: Check if needs to join cluster
+      stat:
+        path: "$HOME/node_joined.txt"
+      register: joined
+
+    - name: "Joining cluster"
+      block:
+      - name: install keadm
+        unarchive:
+          src: https://github.com/kubeedge/kubeedge/releases/download/v1.5.0/keadm-v1.5.0-linux-arm.tar.gz
+          remote_src: true
+          dest: /usr/local/bin
+          extra_opts:
+            - --strip-components=2
+        args:
+          creates: /usr/local/bin/keadm
+        when: ansible_facts['machine'] == 'armv7l'
+
+      - name: install keadm
+        unarchive:
+          src: https://github.com/kubeedge/kubeedge/releases/download/v1.5.0/keadm-v1.5.0-linux-amd64.tar.gz
+          remote_src: true
+          dest: /usr/local/bin
+          extra_opts:
+            - --strip-components=2
+        args:
+          creates: /usr/local/bin/keadm
+        when: ansible_facts['machine'] == 'x86_64'
+
+      # KubeEdge requires that the kernel be up to date to install properly
+      - name: Update software
+        apt:
+          update_cache: true
+          upgrade: safe
+
+      - name: Check if reboot is required
+        stat:
+          path: /var/run/reboot-required
+        register: reboot_required
+
+      - name: Reboot after software update
+        reboot:
+          reboot_timeout: 300
+        when: reboot_required.stat.exists == true
+
+      - name: join cluster
+        shell: |
+          set -eu
+          JOIN_COMMAND="keadm join --cloudcore-ipport={{ hostvars['galactica.local'].master_ip }}:10000 --token={{ hostvars['galactica.local'].join_token }}"
+          # keadm has a bug where it will fail if it has to download keadm, but
+          # MQTT is already installed (for example, if you re-initialize the
+          # node). As such, give it two tries to succeed. The second one should
+          # pass because the archive is already downloaded so it skips the
+          # check for MQTT
+          if ! $JOIN_COMMAND; then
+              $JOIN_COMMAND
+          fi
+          sleep 60
+        args:
+          chdir: $HOME
+
+      - name: Create check file
+        file:
+          path: "$HOME/node_joined.txt"
+          state: touch
+
+      when: not joined.stat.exists
+
+- hosts: galactica.local
+  become: yes
+  tasks:
+    - name: Update labgrid hosts
+      shell: |
+        kubectl patch secret -n yocto-build labgrid-ssh-key -p "{\"data\":{\"known_hosts\":\"$(base64 -w 0 $HOME/labgrid_hosts)\"}}"
+
+- hosts:
+    - labgrid_coordinator
+    - labgrid_exporter
+  become: yes
+  tasks:
+    - name: Set node taint
+      delegate_to: galactica.local
+      shell: |
+        kubectl taint nodes --overwrite $(echo {{ inventory_hostname }} | cut -f1 -d.) edgetype=labgrid:NoExecute
+
+    - name: Create labgrid user
+      user:
+        name: labgrid
+        comment: Labgrid User
+        shell: /bin/bash
+        groups:
+          - plugdev
+
+    - name: Add admin SSH key to labgrid user
+      authorized_key:
+        user: labgrid
+        key: '{{ item }}'
+        exclusive: no
+      with_file:
+        - ../../keys/id_rsa.pub
+
+    - name: Add kubernetes SSH key to labgrid user
+      authorized_key:
+        user: labgrid
+        key: '{{ item }}'
+        exclusive: no
+      with_file:
+        - ../../keys/id_rsa_labgrid.pub
+
+- hosts: labgrid_coordinator
+  become: yes
+  tasks:
+    - name: Set label
+      delegate_to: galactica.local
+      shell: |
+        kubectl label nodes --overwrite $(echo {{ inventory_hostname }} | cut -f1 -d.) edgetype=labgrid-coordinator
+
+- hosts: labgrid_exporter
+  become: yes
+  tasks:
+    - name: Set label
+      delegate_to: galactica.local
+      shell: |
+        kubectl label nodes --overwrite $(echo {{ inventory_hostname }} | cut -f1 -d.) edgetype=labgrid-exporter
+
+    - name: install tools
+      apt:
+        pkg:
+          - bmap-tools
+          - cmake
+          - libftdi1-dev
+          - libpopt-dev
+        state: present
+        update_cache: true
+
+    - name: Install sd-mux-ctrl
+      shell: |
+        set -e
+        cd $HOME
+        rm -rf sd-mux
+        git clone https://git.tizen.org/cgit/tools/testlab/sd-mux
+        mkdir sd-mux/build
+        cd sd-mux/build
+        cmake ..
+        make
+        make install
+        cd $HOME
+        rm -rf sd-mux
+      args:
+        creates: /usr/local/bin/sd-mux-ctrl
+
+- hosts: pirate-exporter-labgrid
+  become: yes
+  tasks:
+    - name: Create Labgrid cache directory
+      file:
+        path: /var/cache/labgrid
+        state: directory
+        mode: '1777'
+
+    - name: Create labgrid configuration directory
+      file:
+        path: /etc/labgrid
+        state: directory
+        mode: '0755'
+
+    - name: Write labgrid configuration
+      copy:
+        dest: /etc/labgrid/configuration.yaml
+        content: |
+          tinkerboard:
+            USBSerialPort:
+              match:
+                ID_SERIAL_SHORT: tinkerboard
+            USBSDWireDevice:
+              match:
+                ID_SERIAL_SHORT: tinkerboard
+            PDUDaemonPort:
+              host: {{ inventory_hostname }}.local
+              pdu: relay
+              index: 4
+
+          rockpi4:
+            USBSerialPort:
+              match:
+                ID_SERIAL_SHORT: AL062QT9
+            USBSDWireDevice:
+              match:
+                ID_SERIAL_SHORT: rock-pi-4
+            PDUDaemonPort:
+              host: {{ inventory_hostname }}.local
+              pdu: relay
+              index: 1
+
+          raspberrypi3:
+            USBSerialPort:
+              match:
+                ID_SERIAL_SHORT: raspberrypi3
+            USBSDWireDevice:
+              match:
+                ID_SERIAL_SHORT: raspberrypi3
+            PDUDaemonPort:
+              host: {{ inventory_hostname }}.local
+              pdu: relay
+              index: 6
+
+          raspberrypi4:
+            USBSerialPort:
+              match:
+                ## Oops :)
+                ID_SERIAL_SHORT: rock-pi-4b
+            USBSDWireDevice:
+              match:
+                ID_SERIAL_SHORT: raspberrypi4
+            PDUDaemonPort:
+              host: {{ inventory_hostname }}.local
+              pdu: relay
+              index: 5
+
+          pineh64:
+            USBSerialPort:
+              match:
+                ID_SERIAL_SHORT: pineh64
+            USBSDWireDevice:
+              match:
+                ID_SERIAL_SHORT: pineh64
+            PDUDaemonPort:
+              host: {{ inventory_hostname }}.local
+              pdu: relay
+              index: 2
+
+    - name: Create pdudaemon configuration directory
+      file:
+        path: /etc/pdudaemon
+        state: directory
+        mode: '0755'
+
+    - name: Write pdudaemon configuration
+      copy:
+        dest: /etc/pdudaemon/pdudaemon.conf
+        content: |
+          {
+              "daemon": {
+                  "hostname": "0.0.0.0",
+                  "port": 16421,
+                  "dbname": "pdudaemon",
+                  "logging_level": "DEBUG",
+                  "listener": "http"
+              },
+              "pdus": {
+                  "relay": {
+                      "driver": "vusbhid",
+                      "serial": "5291D",
+                      "invert": true
+                  }
+              }
+          }
+
+    - name: Write SDWire adaptor rules
+      copy:
+        dest: /etc/udev/rules.d/90-pirate-board.rules
+        content: |
+          SUBSYSTEM=="usb", ATTR{idVendor}=="04e8", ATTR{idProduct}=="6001", MODE:="0666", GROUP:="labgrid"
+          SUBSYSTEM=="block", SUBSYSTEMS=="usb", ATTRS{idVendor}=="0424", ATTRS{idProduct}=="4050", PROGRAM="/bin/chmod 666 /sys/class/block/%k/size", MODE:="0660", GROUP:="labgrid"
+
+    # This udev rule is poorly written because it generates a really long
+    # command line with multiple %p to change the mode of several files at once
+    # with PROGRAM statement. This exceeds the maximum command buffer length in
+    # udev when deep device paths are encountered (such as with USB device). In
+    # a pathological truncation case, this was changing the USB root controller
+    # to 660 (/sys/bus/usb/devices/usb1), which prevents all enumeration on the
+    # bus when specific FTDI devices (with GPIO pins) are plugged in.
+    - name: Remove bad GPIO udev rule
+      file:
+        path: /lib/udev/rules.d/60-rpi.gpio-common.rules
+        state: absent
+
+    - name: Restart udev
+      shell: |
+        udevadm control --reload-rules
+        udevadm trigger
+

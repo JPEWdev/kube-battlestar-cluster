@@ -16,7 +16,9 @@ resources:
   - crops-clone.yaml
   - yocto-whisk-validate.yaml
   - yocto-whisk-build.yaml
+  - yocto-whisk-flash.yaml
   - yocto-whisk-pipeline.yaml
   - yocto-doom-demo-pipeline.yaml
+  - yocto-doom-demo-user.yaml
+  - labgrid-reserve.yaml
   - ingress.yaml
-    #- cron-cleanup.yaml

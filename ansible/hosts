@@ -1,18 +1,24 @@
 [nodes]
 galactica.local
 starbuck.local
+viper.local
 
 [masters]
 galactica.local
 
 [workers]
 starbuck.local
+viper.local
 
 [edge]
-#pirate-controller.local
+pirate-exporter-labgrid
+coordinator-labgrid
 
-[raspberry-pi]
-#pirate-controller.local
+[labgrid_coordinator]
+coordinator-labgrid
+
+[labgrid_exporter]
+pirate-exporter-labgrid
 
 [all:vars]
 ansible_python_interpreter=/usr/bin/python3

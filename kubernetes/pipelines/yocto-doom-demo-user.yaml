@@ -1,0 +1,10 @@
+# This is the user that does the builds. Namely, it has access to the labgrid
+# user SSH private key
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: yocto-doom-demo-user
+  namespace: yocto-build
+secrets:
+  - name: labgrid-ssh-key
+

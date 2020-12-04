@@ -1,4 +1,4 @@
-{%- for product in ["raspberrypi4", "raspberrypi3", "rockpi4", "tinkerboard", "qemux86-64"] %}
+{%- for product in ["raspberrypi4", "raspberrypi3", "rockpi4", "tinkerboard"] %}
 {%- for version in ["default", "hardknott"] %}
 {%- for upstream in [false, true] %}
 ---
@@ -12,6 +12,7 @@ metadata:
     version: {{ version }}
     upstream: "{{ 'true' if upstream else 'false' }}"
 spec:
+  serviceAccountName: yocto-doom-demo-user
   pipelineRef:
     name: yocto-whisk-pipeline
   params:
@@ -31,6 +32,16 @@ spec:
       value: "{{ version }}"
     - name: submoduleRemote
       value: "{{ 'true' if upstream else 'false' }}"
+    - name: labgridProxy
+      value: labgrid-proxy.pirate-controller
+    - name: labgridProxyUser
+      value: labgrid
+    - name: labgridDomain
+      value: "*-labgrid"
+    - name: labgridDomainSuffix
+      value: ".local"
+    - name: flashTarget
+      value: "mc:product-{{ product }}:core-image-doom"
   workspaces:
     - name: build-workspace
       subPath: build

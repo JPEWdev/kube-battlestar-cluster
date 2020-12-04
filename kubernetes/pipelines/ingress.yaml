@@ -1,3 +1,4 @@
+# Ingress rules to allow access to the Yocto NFS cache outside the cluster
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:

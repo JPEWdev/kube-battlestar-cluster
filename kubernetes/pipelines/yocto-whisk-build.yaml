@@ -55,16 +55,16 @@ spec:
   stepTemplate:
     resources:
       requests:
-        cpu: "6"
-        memory: "8Gi"
+        cpu: "10"
+        memory: "12Gi"
       limits:
-        cpu: "6"
-        memory: "8Gi"
+        cpu: "10"
+        memory: "12Gi"
   steps:
     - name: build
       image: joshuawatt/crops:ubuntu-20.04-base
       script: |
-        NUM_CPUS="8"
+        NUM_CPUS="10"
 
         renice -n $(params.nice) -p $$$$
 
@@ -90,6 +90,7 @@ spec:
         cat >> conf/local.conf <<HEREDOC
         SSTATE_DIR = "/mnt/cache/sstate"
         DL_DIR = "/mnt/cache/downloads"
+        IMAGE_FSTYPES += "wic.bz2"
 
         PARALLEL_MAKE = "-j $NUM_CPUS"
         BB_NUMBER_THREADS = "$NUM_CPUS"

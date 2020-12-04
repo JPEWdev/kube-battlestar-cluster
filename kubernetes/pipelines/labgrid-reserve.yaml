@@ -1,0 +1,153 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: labgrid-reserve
+  namespace: yocto-build
+spec:
+  params:
+    - name: tag
+      description: Labgrid reservation tag
+      type: string
+    - name: proxy
+      description: Labgrid proxy server
+      type: string
+      default: ""
+    - name: proxyUser
+      description: User name for connecting to proxy server
+      type: string
+      default: ""
+    - name: crossbar
+      description: Labgrid crossbar server
+      type: string
+      default: ""
+    - name: realm
+      description: Labgrid crossbar realm
+      type: string
+      default: ""
+    - name: domain
+      description: Domain glob to add for labgrid exporters
+      type: string
+      default: ""
+    - name: domainSuffix
+      description: Domain suffix to add for labgrid exports behind jump proxy (e.g. .local)
+      type: string
+      default: ""
+
+  results:
+    - name: token
+      description: The Labgrid reserved token
+    - name: place
+      description: The Labgrid reserved place
+
+  workspaces:
+    - name: labgrid
+      description: The labgrid workspace
+
+  steps:
+    # This step creates an environment file that must be sourced by every
+    # task/step that wants to use labgrid
+    - name: prepare-env
+      image: busybox:1.32.0
+      script: |
+        #!/bin/sh
+        set -eu
+
+        ENV_FILE=$(workspaces.labgrid.path)/labgrid.env
+
+        # I couldn't figure out how to reliably determine a user's home
+        # directory (Tekton resets $HOME, and ssh ignores it), so you must set
+        # SSH_HOME before sourcing the environment file :(
+        echo 'mkdir -p $SSH_HOME' >> $ENV_FILE
+        echo 'ln -sf $(credentials.path)/.ssh $SSH_HOME/.ssh' >> $ENV_FILE
+
+        if [ -n "$(params.proxy)" ]; then
+            echo 'export LG_PROXY="$(params.proxy)"' >> $ENV_FILE
+
+            if [ -n "$(params.proxyUser)" ]; then
+                echo 'echo "Host $(params.proxy)" >> $(credentials.path)/.ssh/config' >> $ENV_FILE
+                echo 'echo "    User $(params.proxyUser)" >> $(credentials.path)/.ssh/config' >> $ENV_FILE
+            fi
+
+            if [ -n "$(params.domain)" ]; then
+                echo 'echo "Host !$(params.proxy) $(params.domain)" >> $(credentials.path)/.ssh/config' >> $ENV_FILE
+                echo 'echo "    ProxyCommand ssh $(params.proxy) -W %h$(params.domainSuffix):%p" >> $(credentials.path)/.ssh/config' >> $ENV_FILE
+                if [ -n "$(params.proxyUser)" ]; then
+                    echo 'echo "    User $(params.proxyUser)" >> $(credentials.path)/.ssh/config' >> $ENV_FILE
+                fi
+            fi
+        fi
+
+        if [ -n "$(params.crossbar)" ]; then
+            echo 'export LG_CROSSBAR="$(params.crossbar)"' >> $ENV_FILE
+        fi
+
+        if [ -n "$(params.realm)" ]; then
+            echo 'export LG_CROSSBAR_REALM="$(params.realm)"' >> $ENV_FILE
+        fi
+
+        echo "export LG_CLAIM_HOSTNAME=\"$POD_NAME\"" >> $ENV_FILE
+        echo "export LG_CLAIM_USER=\"tekton\"" >> $ENV_FILE
+
+        cat $ENV_FILE
+
+      env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+
+    - name: reserve
+      image: joshuawatt/labgrid-client:2020.12.3.2
+      script: |
+        SSH_HOME=/root
+        . $(workspaces.labgrid.path)/labgrid.env
+
+        echo "Waiting to reserve $(params.tag)..."
+        eval `labgrid-client reserve --shell --wait $(params.tag)`
+        echo "Locking $LG_TOKEN..."
+        labgrid-client -p + acquire
+
+        echo -n "$LG_TOKEN" > $(results.token.path)
+        echo -n "+$LG_TOKEN" > $(results.place.path)
+        echo "export LG_PLACE=\"+$LG_TOKEN\"" >> $(workspaces.labgrid.path)/labgrid.env
+        echo "export LG_TOKEN=\"$LG_TOKEN\"" >> $(workspaces.labgrid.path)/labgrid.env
+
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: labgrid-release
+  namespace: yocto-build
+spec:
+  workspaces:
+    - name: labgrid
+      description: The labgrid workspace
+  steps:
+    # Release a labgrid reservation and place. This should be in the finally
+    # section of your pipeline
+    - name: release
+      image: joshuawatt/labgrid-client:2020.12.3.2
+      script: |
+        #!/bin/sh
+        set -e
+
+        if [ -f $(workspaces.labgrid.path)/labgrid.env ]; then
+            SSH_HOME=/root
+            . $(workspaces.labgrid.path)/labgrid.env /root
+            if [ -n "$LG_PLACE" ]; then
+                labgrid-client release
+            else
+                echo "No place defined"
+            fi
+
+            if [ -n "$LG_TOKEN" ]; then
+                labgrid-client cancel-reservation
+            else
+                echo "No reservation defined"
+            fi
+        else
+            echo "No labgrid environment found"
+        fi
+
+

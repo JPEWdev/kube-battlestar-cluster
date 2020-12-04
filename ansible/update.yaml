@@ -1,0 +1,14 @@
+- hosts:
+    - nodes
+    - edge
+  become: yes
+  tasks:
+    - name: Update software
+      apt:
+        update_cache: true
+        upgrade: safe
+
+    - name: reboot
+      reboot:
+        reboot_timeout: 500
+

@@ -49,10 +49,30 @@ spec:
       description: The bitbake build target
       type: string
       default: "all-targets"
+    - name: flashTarget
+      description: The image to flash remotely
+      type: string
+      default: ""
     - name: submoduleRemote
       description: Use submodule remote tracking branches instead of recorded SHA-1
       type: string
       default: "false"
+    - name: labgridProxy
+      description: Labgrid SSH Proxy
+      type: string
+      default: ""
+    - name: labgridProxyUser
+      description: Labgrid SSH Proxy user
+      type: string
+      default: ""
+    - name: labgridDomain
+      description: Domain glob for labgrid exporters
+      type: string
+      default: ""
+    - name: labgridDomainSuffix
+      description: Domain suffix for labgrid exporters behind proxy (e.g. .local)
+      type: string
+      default: ""
 
   workspaces:
     - name: build-workspace
@@ -119,4 +139,48 @@ spec:
           value: "false"
         - name: subdirectory
           value: "$(params.subdirectory)"
+
+    - name: labgrid-reserve
+      taskRef:
+        name: labgrid-reserve
+      runAfter:
+        - build
+      params:
+        - name: tag
+          value: "product=$(params.products)"
+        - name: proxy
+          value: "$(params.labgridProxy)"
+        - name: proxyUser
+          value: "$(params.labgridProxyUser)"
+        - name: domain
+          value: "$(params.labgridDomain)"
+        - name: domainSuffix
+          value: "$(params.labgridDomainSuffix)"
+      workspaces:
+        - name: labgrid
+          workspace: build-workspace
+
+    - name: flash
+      taskRef:
+        name: yocto-whisk-flash
+      runAfter:
+        - labgrid-reserve
+      params:
+        - name: subdirectory
+          value: "$(params.subdirectory)"
+        - name: initScript
+          value: "$(params.initScript)"
+        - name: flashTarget
+          value: "$(params.flashTarget)"
+      workspaces:
+        - name: build
+          workspace: build-workspace
+
+  finally:
+    - name: labgrid-release
+      taskRef:
+        name: labgrid-release
+      workspaces:
+        - name: labgrid
+          workspace: build-workspace
 
