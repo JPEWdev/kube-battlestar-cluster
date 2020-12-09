@@ -240,6 +240,8 @@
           - cmake
           - libftdi1-dev
           - libpopt-dev
+          - build-essential
+          - pkg-config
         state: present
         update_cache: true
 
