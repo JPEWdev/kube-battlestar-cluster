@@ -11,14 +11,25 @@ starbuck.local
 viper.local
 
 [edge]
+# All Edge nodes
 pirate-exporter-labgrid
 coordinator-labgrid
 
 [labgrid_coordinator]
+# Nodes that are Labgrid Coordinators
 coordinator-labgrid
 
 [labgrid_exporter]
-pirate-exporter-labgrid
+# Nodes that are Labgrid Exporters
+coordinator-labgrid
+
+[pdudaemon]
+# Nodes that run PDUDaemon
+coordinator-labgrid
+
+[pirate_exporter]
+# The node that is the exporter for the pirate boards
+coordinator-labgrid
 
 [all:vars]
 ansible_python_interpreter=/usr/bin/python3
