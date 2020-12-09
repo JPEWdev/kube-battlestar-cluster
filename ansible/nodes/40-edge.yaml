@@ -288,6 +288,7 @@
             USBSerialPort:
               match:
                 ID_SERIAL_SHORT: AL062QT9
+              speed: 1500000
             USBSDWireDevice:
               match:
                 ID_SERIAL_SHORT: rock-pi-4
