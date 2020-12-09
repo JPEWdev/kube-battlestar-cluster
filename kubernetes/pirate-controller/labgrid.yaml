@@ -89,8 +89,56 @@ spec:
             # TODO: Fix this!
             privileged: true
 
+      volumes:
+        - name: exporter-conf
+          hostPath:
+            path: /etc/labgrid/configuration.yaml
+            type: File
+
+        - name: host-usb
+          hostPath:
+            path: /dev/bus/usb
+            type: Directory
+
+        - name: host-udev
+          hostPath:
+            path: /run/udev
+            type: Directory
+
+        - name: labgrid-cache
+          hostPath:
+            path: /var/cache/labgrid
+            type: Directory
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: pdudaemon
+  labels:
+    app: pdudaemon
+spec:
+  selector:
+    matchLabels:
+      app: pdudaemon
+  template:
+    metadata:
+      labels:
+        app: pdudaemon
+    spec:
+      nodeSelector:
+        pdudaemon: "yes"
+
+      tolerations:
+        - key: edgetype
+          operator: Equal
+          value: labgrid
+          effect: NoExecute
+
+      hostNetwork: true
+
+      containers:
         - name: pdudaemon
-          image: joshuawatt/pdudaemon:2020.12.3.1
+          image: joshuawatt/pdudaemon:2020.12.9.1
           volumeMounts:
             - name: pdudaemon-conf
               mountPath: /config/pdudaemon.conf
@@ -108,11 +156,6 @@ spec:
             privileged: true
 
       volumes:
-        - name: exporter-conf
-          hostPath:
-            path: /etc/labgrid/configuration.yaml
-            type: File
-
         - name: pdudaemon-conf
           hostPath:
             path: /etc/pdudaemon/pdudaemon.conf
@@ -126,11 +169,6 @@ spec:
         - name: host-udev
           hostPath:
             path: /run/udev
-            type: Directory
-
-        - name: labgrid-cache
-          hostPath:
-            path: /var/cache/labgrid
             type: Directory
 ---
 # This service gives the Tekton pipelines a DNS name they can use to ssh into

@@ -170,6 +170,12 @@
         kubectl label nodes $(echo {{ inventory_hostname }} | cut -f1 -d.) labgrid-exporter-
       when: "'labgrid_exporter' not in group_names"
 
+    - name: Remove pdudaemon label
+      delegate_to: galactica.local
+      shell: |
+        kubectl label nodes $(echo {{ inventory_hostname }} | cut -f1 -d.) pdudaemon-
+      when: "'pdudaemon' not in group_names"
+
 - hosts: galactica.local
   become: yes
   tasks:
@@ -253,7 +259,22 @@
       args:
         creates: /usr/local/bin/sd-mux-ctrl
 
-- hosts: pirate-exporter-labgrid
+    - name: Labgrid cache cleanup
+      cron:
+        name: "Cleanup labgrid"
+        minute: "0"
+        job: "find /var/cache/labgrid/ -type f -mmin +60 -delete"
+
+- hosts: pdudaemon
+  become: yes
+  tasks:
+    - name: Set label
+      delegate_to: galactica.local
+      shell: |
+        kubectl label nodes --overwrite $(echo {{ inventory_hostname }} | cut -f1 -d.) pdudaemon=yes
+
+
+- hosts: pirate_exporter
   become: yes
   tasks:
     - name: Create Labgrid cache directory
