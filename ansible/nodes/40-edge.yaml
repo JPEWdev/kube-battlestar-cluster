@@ -158,6 +158,18 @@
 
       when: not joined.stat.exists
 
+    - name: Remove Labgrid coordinator label
+      delegate_to: galactica.local
+      shell: |
+        kubectl label nodes $(echo {{ inventory_hostname }} | cut -f1 -d.) labgrid-coordinator-
+      when: "'labgrid_coordinator' not in group_names"
+
+    - name: Remove Labgrid exporter label
+      delegate_to: galactica.local
+      shell: |
+        kubectl label nodes $(echo {{ inventory_hostname }} | cut -f1 -d.) labgrid-exporter-
+      when: "'labgrid_exporter' not in group_names"
+
 - hosts: galactica.local
   become: yes
   tasks:
@@ -205,7 +217,7 @@
     - name: Set label
       delegate_to: galactica.local
       shell: |
-        kubectl label nodes --overwrite $(echo {{ inventory_hostname }} | cut -f1 -d.) edgetype=labgrid-coordinator
+        kubectl label nodes --overwrite $(echo {{ inventory_hostname }} | cut -f1 -d.) labgrid-coordinator=yes
 
 - hosts: labgrid_exporter
   become: yes
@@ -213,7 +225,7 @@
     - name: Set label
       delegate_to: galactica.local
       shell: |
-        kubectl label nodes --overwrite $(echo {{ inventory_hostname }} | cut -f1 -d.) edgetype=labgrid-exporter
+        kubectl label nodes --overwrite $(echo {{ inventory_hostname }} | cut -f1 -d.) labgrid-exporter=yes
 
     - name: install tools
       apt:
