@@ -14,7 +14,7 @@ spec:
         app: labgrid-coordinator
     spec:
       nodeSelector:
-        edgetype: labgrid-coordinator
+        labgrid-coordinator: "yes"
 
       tolerations:
         - key: edgetype
@@ -56,7 +56,7 @@ spec:
         app: labgrid-exporter
     spec:
       nodeSelector:
-        edgetype: labgrid-exporter
+        labgrid-exporter: "yes"
 
       tolerations:
         - key: edgetype
