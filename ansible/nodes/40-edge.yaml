@@ -332,6 +332,7 @@
               host: {{ inventory_hostname }}.local
               pdu: relay
               index: 2
+      register: labgrid_conf
 
     - name: Create pdudaemon configuration directory
       file:
@@ -359,6 +360,12 @@
                   }
               }
           }
+      register: pdudaemon_conf
+
+    - name: Reboot to apply config changes
+      reboot:
+        reboot_timeout: 300
+      when: labgrid_conf.changed or pdudaemon_conf.changed
 
     - name: Write SDWire adaptor rules
       copy:
