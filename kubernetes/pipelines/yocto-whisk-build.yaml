@@ -90,7 +90,6 @@ spec:
         cat >> conf/local.conf <<HEREDOC
         SSTATE_DIR = "/mnt/cache/sstate"
         DL_DIR = "/mnt/cache/downloads"
-        IMAGE_FSTYPES += "wic.bz2"
 
         PARALLEL_MAKE = "-j $NUM_CPUS"
         BB_NUMBER_THREADS = "$NUM_CPUS"

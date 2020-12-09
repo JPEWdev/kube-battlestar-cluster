@@ -49,10 +49,6 @@ spec:
       description: The bitbake build target
       type: string
       default: "all-targets"
-    - name: flashTarget
-      description: The image to flash remotely
-      type: string
-      default: ""
     - name: submoduleRemote
       description: Use submodule remote tracking branches instead of recorded SHA-1
       type: string
@@ -69,10 +65,16 @@ spec:
       description: Domain glob for labgrid exporters
       type: string
       default: ""
-    - name: labgridDomainSuffix
-      description: Domain suffix for labgrid exporters behind proxy (e.g. .local)
+    - name: labgridProxyCommand
+      description: The command to use to access labgrid export servers behind the proxy
       type: string
-      default: ""
+      default: "ssh $PROXY -W %h:%p"
+    - name: labgridTestDirectory
+      description: Location of the pytest files
+      type: string
+    - name: labgridEnvFile
+      description: Location of the LabGrid pytest environment file
+      type: string
 
   workspaces:
     - name: build-workspace
@@ -154,15 +156,15 @@ spec:
           value: "$(params.labgridProxyUser)"
         - name: domain
           value: "$(params.labgridDomain)"
-        - name: domainSuffix
-          value: "$(params.labgridDomainSuffix)"
+        - name: proxyCommand
+          value: "$(params.labgridProxyCommand)"
       workspaces:
         - name: labgrid
           workspace: build-workspace
 
-    - name: flash
+    - name: test
       taskRef:
-        name: yocto-whisk-flash
+        name: yocto-whisk-test
       runAfter:
         - labgrid-reserve
       params:
@@ -170,8 +172,10 @@ spec:
           value: "$(params.subdirectory)"
         - name: initScript
           value: "$(params.initScript)"
-        - name: flashTarget
-          value: "$(params.flashTarget)"
+        - name: testDirectory
+          value: "$(params.labgridTestDirectory)"
+        - name: envFile
+          value: "$(params.labgridEnvFile)"
       workspaces:
         - name: build
           workspace: build-workspace

@@ -38,10 +38,12 @@ spec:
       value: labgrid
     - name: labgridDomain
       value: "*-labgrid"
-    - name: labgridDomainSuffix
-      value: ".local"
-    - name: flashTarget
-      value: "mc:product-{{ product }}:core-image-doom"
+    - name: labgridProxyCommand
+      value: "ssh $PROXY -W %h.local:%p"
+    - name: labgridTestDirectory
+      value: "ci/{{ product }}"
+    - name: labgridEnvFile
+      value: "ci/{{ product }}/env.yaml"
   workspaces:
     - name: build-workspace
       subPath: build

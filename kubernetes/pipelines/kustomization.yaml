@@ -17,6 +17,7 @@ resources:
   - yocto-whisk-validate.yaml
   - yocto-whisk-build.yaml
   - yocto-whisk-flash.yaml
+  - yocto-whisk-test.yaml
   - yocto-whisk-pipeline.yaml
   - yocto-doom-demo-pipeline.yaml
   - yocto-doom-demo-user.yaml

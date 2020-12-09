@@ -26,7 +26,7 @@ spec:
 
       containers:
         - name: labgrid-coordinator
-          image: joshuawatt/labgrid-coordinator:2020.12.3.1
+          image: joshuawatt/labgrid-coordinator:2020.12.9.1
           volumeMounts:
             - name: crossbar
               mountPath: /opt/crossbar
@@ -68,7 +68,7 @@ spec:
 
       containers:
         - name: labgrid-exporter
-          image: joshuawatt/labgrid-exporter:2020.12.3.1
+          image: joshuawatt/labgrid-exporter:2020.12.9.1
           command: ["/entrypoint.sh"]
           # TODO: It would be really nice to have a way to look up the
           # coordinator via a name instead of an IP address

@@ -28,10 +28,10 @@ spec:
       description: Domain glob to add for labgrid exporters
       type: string
       default: ""
-    - name: domainSuffix
-      description: Domain suffix to add for labgrid exports behind jump proxy (e.g. .local)
+    - name: proxyCommand
+      description: The command to use to access labgrid export servers behind the proxy
       type: string
-      default: ""
+      default: "ssh $PROXY -W %h:%p"
 
   results:
     - name: token
@@ -69,8 +69,9 @@ spec:
             fi
 
             if [ -n "$(params.domain)" ]; then
+                PROXY="$(params.proxy)"
                 echo 'echo "Host !$(params.proxy) $(params.domain)" >> $(credentials.path)/.ssh/config' >> $ENV_FILE
-                echo 'echo "    ProxyCommand ssh $(params.proxy) -W %h$(params.domainSuffix):%p" >> $(credentials.path)/.ssh/config' >> $ENV_FILE
+                echo "echo '    ProxyCommand $(params.proxyCommand)' >> $(credentials.path)/.ssh/config" >> $ENV_FILE
                 if [ -n "$(params.proxyUser)" ]; then
                     echo 'echo "    User $(params.proxyUser)" >> $(credentials.path)/.ssh/config' >> $ENV_FILE
                 fi
@@ -97,7 +98,7 @@ spec:
               fieldPath: metadata.name
 
     - name: reserve
-      image: joshuawatt/labgrid-client:2020.12.3.2
+      image: joshuawatt/labgrid-client:2020.12.9.1
       script: |
         SSH_HOME=/root
         . $(workspaces.labgrid.path)/labgrid.env
@@ -127,7 +128,7 @@ spec:
     # Release a labgrid reservation and place. This should be in the finally
     # section of your pipeline
     - name: release
-      image: joshuawatt/labgrid-client:2020.12.3.2
+      image: joshuawatt/labgrid-client:2020.12.9.1
       script: |
         #!/bin/sh
         set -e
