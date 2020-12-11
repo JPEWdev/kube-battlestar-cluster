@@ -27,7 +27,12 @@ spec:
     resources:
       requests:
         cpu: "1"
-        memory: "2Gi"
+        memory: "6Gi"
+        # This isn't ideal because it limits what nodes we can run on, even if
+        # we don't need qemu
+        devices.kubevirt.io/kvm: "1"
+      limits:
+        devices.kubevirt.io/kvm: "1"
   steps:
     - name: get-environment
       image: joshuawatt/crops:ubuntu-20.04-base
@@ -37,7 +42,7 @@ spec:
         bitbake -e > $(workspaces.build.path)/env.txt
 
     - name: test
-      image: joshuawatt/labgrid-client:2020.12.9.1
+      image: joshuawatt/labgrid-client:2020.12.11.2
       script: |
         SSH_HOME=/root
         . $(workspaces.build.path)/labgrid.env

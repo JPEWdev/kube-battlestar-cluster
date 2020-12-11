@@ -148,6 +148,8 @@ spec:
       runAfter:
         - build
       params:
+        - name: envFile
+          value: "$(params.subdirectory)/$(params.labgridEnvFile)"
         - name: tag
           value: "product=$(params.products)"
         - name: proxy

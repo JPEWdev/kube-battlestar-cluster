@@ -5,6 +5,10 @@ metadata:
   namespace: yocto-build
 spec:
   params:
+    - name: envFile
+      description: Labgrid environment file
+      type: string
+      default: ""
     - name: tag
       description: Labgrid reservation tag
       type: string
@@ -98,19 +102,32 @@ spec:
               fieldPath: metadata.name
 
     - name: reserve
-      image: joshuawatt/labgrid-client:2020.12.9.1
+      image: joshuawatt/labgrid-client:2020.12.11.2
       script: |
         SSH_HOME=/root
         . $(workspaces.labgrid.path)/labgrid.env
 
-        echo "Waiting to reserve $(params.tag)..."
-        eval `labgrid-client reserve --shell --wait $(params.tag)`
-        echo "Locking $LG_TOKEN..."
-        labgrid-client -p + acquire
+        RESERVE=true
+
+        # If an environment file is specified, only make a reservation if it
+        # has a RemotePlace specified
+        if [ -n "$(params.envFile)" ]; then
+          if ! $(yq '.targets.main.resources.RemotePlace | has("name")' "$(workspaces.labgrid.path)/$(params.envFile)"); then
+            RESERVE=false
+          fi
+        fi
+
+        if $RESERVE; then
+          echo "Waiting to reserve $(params.tag)..."
+          eval `labgrid-client reserve --shell --wait $(params.tag)`
+          echo "Locking $LG_TOKEN..."
+          labgrid-client -p + acquire
+          LG_PLACE="+$LG_TOKEN"
+        fi
 
         echo -n "$LG_TOKEN" > $(results.token.path)
-        echo -n "+$LG_TOKEN" > $(results.place.path)
-        echo "export LG_PLACE=\"+$LG_TOKEN\"" >> $(workspaces.labgrid.path)/labgrid.env
+        echo -n "$LG_PLACE" > $(results.place.path)
+        echo "export LG_PLACE=\"$LG_PLACE\"" >> $(workspaces.labgrid.path)/labgrid.env
         echo "export LG_TOKEN=\"$LG_TOKEN\"" >> $(workspaces.labgrid.path)/labgrid.env
 
 
@@ -128,7 +145,7 @@ spec:
     # Release a labgrid reservation and place. This should be in the finally
     # section of your pipeline
     - name: release
-      image: joshuawatt/labgrid-client:2020.12.9.1
+      image: joshuawatt/labgrid-client:2020.12.11.2
       script: |
         #!/bin/sh
         set -e
