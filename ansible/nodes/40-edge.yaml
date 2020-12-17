@@ -332,6 +332,18 @@
               pdu: relay
               index: 1
 
+          rockpix:
+            USBSerialPort:
+              match:
+                ID_SERIAL_SHORT: AQ00KVXX
+            USBSDWireDevice:
+              match:
+                ID_SERIAL_SHORT: rock-pi-x
+            PDUDaemonPort:
+              host: {{ inventory_hostname }}.local
+              pdu: relay
+              index: 8
+
           raspberrypi3:
             USBSerialPort:
               match:
