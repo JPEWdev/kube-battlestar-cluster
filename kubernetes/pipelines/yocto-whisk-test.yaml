@@ -42,7 +42,7 @@ spec:
         bitbake -e > $(workspaces.build.path)/env.txt
 
     - name: test
-      image: joshuawatt/labgrid-client:2020.12.11.2
+      image: joshuawatt/labgrid-client:2020.12.14.1
       script: |
         SSH_HOME=/root
         . $(workspaces.build.path)/labgrid.env

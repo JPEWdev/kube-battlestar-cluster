@@ -13,7 +13,7 @@ A possibly out of date description of the Cluster hardware
 
 **Labgrid Coordinator Edge Node (coordinator-labgrid):** Dell Optiplex 7040, i7-6700 @ 3.7 GHz, 16 GB RAM
 
-**Labgrid Exporter Edge Node (pirate-exporter-labgrid):** Rapsberry Pi 4, 4 GB RAM (currently unused)
+**Labgrid Exporter Edge Node (pegasus-labgrid):** Rapsberry Pi 4, 8 GB RAM
 
 The labgrid nodes are attached to my [PiRATE test boards](https://wattissoftware.blogspot.com/search/label/PiRATE)
 
@@ -39,9 +39,8 @@ straight forward, with typical clone/build tasks. Testing of remote devices is
 using [Labgrid](https://labgrid.readthedocs.io/en/latest/). The Tekton pipeline
 runs [tests](https://github.com/JPEWdev/yocto-doom-demo/tree/main/ci) using
 pytest with the Labgrid plugin, and it connects to a remote Labgrid coordinator
-over ssh. The coordinator is also the SSH proxy for the labgrid exporter(s)
-(although, currently the exporter and the coordinator are the same device). The
-Labgrid nodes are attached to the cluster as edge nodes using
+over ssh. The coordinator is also the SSH proxy for the labgrid exporter(s).
+The Labgrid nodes are attached to the cluster as edge nodes using
 [KubeEdge](https://kubeedge.io/), which allows orchestrating them using
 Kubernetes. Finally, testing of x86 emulated devices is done using
 [KubeVirt](https://kubevirt.io/) to allow the testing image to run QEMU using

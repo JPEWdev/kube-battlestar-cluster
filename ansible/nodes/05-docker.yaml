@@ -1,4 +1,4 @@
-- hosts: all
+- hosts: raspbian
   become: yes
   tasks:
     - name: Enable memory cgroup
@@ -15,8 +15,10 @@
           reboot:
             reboot_timeout: 300
           when: boot_cmdline.changed
-      when: ansible_facts['lsb']['id'] == 'Raspbian'
 
+- hosts: all
+  become: yes
+  tasks:
     - name: install Docker
       apt:
         name: docker.io

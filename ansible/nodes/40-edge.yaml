@@ -97,7 +97,7 @@
 
     - name: "Joining cluster"
       block:
-      - name: install keadm
+      - name: install keadm (arm32)
         unarchive:
           src: https://github.com/kubeedge/kubeedge/releases/download/v1.5.0/keadm-v1.5.0-linux-arm.tar.gz
           remote_src: true
@@ -108,7 +108,18 @@
           creates: /usr/local/bin/keadm
         when: ansible_facts['machine'] == 'armv7l'
 
-      - name: install keadm
+      - name: install keadm (aarch64)
+        unarchive:
+          src: https://github.com/kubeedge/kubeedge/releases/download/v1.5.0/keadm-v1.5.0-linux-arm64.tar.gz
+          remote_src: true
+          dest: /usr/local/bin
+          extra_opts:
+            - --strip-components=2
+        args:
+          creates: /usr/local/bin/keadm
+        when: ansible_facts['machine'] == 'aarch64'
+
+      - name: install keadm (x86_64)
         unarchive:
           src: https://github.com/kubeedge/kubeedge/releases/download/v1.5.0/keadm-v1.5.0-linux-amd64.tar.gz
           remote_src: true

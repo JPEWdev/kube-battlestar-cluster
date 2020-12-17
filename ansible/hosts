@@ -12,8 +12,11 @@ viper.local
 
 [edge]
 # All Edge nodes
-pirate-exporter-labgrid
 coordinator-labgrid
+pegasus-labgrid
+
+[raspbian]
+pegasus-labgrid
 
 [labgrid_coordinator]
 # Nodes that are Labgrid Coordinators
@@ -21,15 +24,15 @@ coordinator-labgrid
 
 [labgrid_exporter]
 # Nodes that are Labgrid Exporters
-coordinator-labgrid
+pegasus-labgrid
 
 [pdudaemon]
 # Nodes that run PDUDaemon
-coordinator-labgrid
+pegasus-labgrid
 
 [pirate_exporter]
 # The node that is the exporter for the pirate boards
-coordinator-labgrid
+pegasus-labgrid
 
 [all:vars]
 ansible_python_interpreter=/usr/bin/python3

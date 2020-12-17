@@ -45,10 +45,14 @@
         regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
         replace: '# \1'
 
+- hosts: raspbian
+  become: yes
+  tasks:
     - name: Disable swap file
-      shell: |
-        dphys-swapfile swapoff
-      when: ansible_facts['lsb']['id'] == 'Raspbian'
+      systemd:
+        name: dphys-swapfile
+        state: stopped
+        enabled: no
 
 - hosts: nodes
   become: yes

@@ -102,7 +102,7 @@ spec:
               fieldPath: metadata.name
 
     - name: reserve
-      image: joshuawatt/labgrid-client:2020.12.11.2
+      image: joshuawatt/labgrid-client:2020.12.14.1
       script: |
         SSH_HOME=/root
         . $(workspaces.labgrid.path)/labgrid.env
@@ -145,7 +145,7 @@ spec:
     # Release a labgrid reservation and place. This should be in the finally
     # section of your pipeline
     - name: release
-      image: joshuawatt/labgrid-client:2020.12.11.2
+      image: joshuawatt/labgrid-client:2020.12.14.1
       script: |
         #!/bin/sh
         set -e
