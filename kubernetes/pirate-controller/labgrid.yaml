@@ -38,6 +38,41 @@ spec:
           hostPath:
             path: /opt/crossbar
             type: DirectoryOrCreate
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: labgrid-tunnel-server
+  labels:
+    app: labgrid-tunnel-server
+spec:
+  selector:
+    matchLabels:
+      app: labgrid-tunnel-server
+  template:
+    metadata:
+      labels:
+        app: labgrid-tunnel-server
+    spec:
+      nodeSelector:
+        labgrid-coordinator: "yes"
+
+      tolerations:
+        - key: edgetype
+          operator: Equal
+          value: labgrid
+          effect: NoExecute
+
+      hostNetwork: true
+
+      containers:
+        - name: piping-tunnel-server
+          image: joshuawatt/piping-tunnel:2021.1.6.2
+          args: ["server",
+                 "--server", "https://pipe.wattissoftware.com",
+                 "--port", "22",
+                 "--yamux", "jpew-edge-coordinator"
+                ]
 
 ---
 apiVersion: apps/v1
@@ -171,17 +206,40 @@ spec:
             path: /run/udev
             type: Directory
 ---
-# This service gives the Tekton pipelines a DNS name they can use to ssh into
-# the labgrid-coordinator. It's not ideal because there could theoretically be
-# several labgrid coordinators to choose from, but the service only works for
-# one. There probably some better way to do this, but I don't know what it is
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coordinator-proxy
+  labels:
+    app: coordinator-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: coordinator-proxy
+  template:
+    metadata:
+      labels:
+        app: coordinator-proxy
+    spec:
+      containers:
+        - name: piping-tunnel-client
+          image: joshuawatt/piping-tunnel:2021.1.6.2
+          args: ["client",
+                 "--server", "https://pipe.wattissoftware.com",
+                 "--port", "22",
+                 "--yamux", "jpew-edge-coordinator",
+                ]
+          ports:
+            - containerPort: 22
+---
 apiVersion: v1
 kind: Service
 metadata:
   name: labgrid-proxy
 spec:
   selector:
-    app: labgrid-coordinator
+    app: coordinator-proxy
   ports:
     - protocol: TCP
       port: 22
