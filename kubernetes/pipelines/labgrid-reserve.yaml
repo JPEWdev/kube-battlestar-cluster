@@ -90,8 +90,8 @@ spec:
             echo 'export LG_CROSSBAR_REALM="$(params.realm)"' >> $ENV_FILE
         fi
 
-        echo "export LG_CLAIM_HOSTNAME=\"$POD_NAME\"" >> $ENV_FILE
-        echo "export LG_CLAIM_USER=\"tekton\"" >> $ENV_FILE
+        echo "export LG_HOSTNAME=\"$POD_NAME\"" >> $ENV_FILE
+        echo "export LG_USERNAME=\"tekton\"" >> $ENV_FILE
 
         cat $ENV_FILE
 
@@ -102,7 +102,7 @@ spec:
               fieldPath: metadata.name
 
     - name: reserve
-      image: joshuawatt/labgrid-client:2020.12.14.1
+      image: joshuawatt/labgrid-client:2021.2.25.2
       script: |
         SSH_HOME=/root
         . $(workspaces.labgrid.path)/labgrid.env
@@ -145,14 +145,14 @@ spec:
     # Release a labgrid reservation and place. This should be in the finally
     # section of your pipeline
     - name: release
-      image: joshuawatt/labgrid-client:2020.12.14.1
+      image: joshuawatt/labgrid-client:2021.2.25.2
       script: |
         #!/bin/sh
         set -e
 
         if [ -f $(workspaces.labgrid.path)/labgrid.env ]; then
             SSH_HOME=/root
-            . $(workspaces.labgrid.path)/labgrid.env /root
+            . $(workspaces.labgrid.path)/labgrid.env
             if [ -n "$LG_PLACE" ]; then
                 labgrid-client release
             else
