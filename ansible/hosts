@@ -34,6 +34,11 @@ pegasus-labgrid
 # The node that is the exporter for the pirate boards
 pegasus-labgrid
 
+[dell_r610]
+galactica.local
+starbuck.local
+viper.local
+
 [all:vars]
 ansible_python_interpreter=/usr/bin/python3
 ansible_user=adama

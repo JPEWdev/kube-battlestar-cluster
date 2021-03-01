@@ -1,0 +1,33 @@
+- hosts: dell_r610
+  become: yes
+  tasks:
+    - name: Write network configuration
+      copy:
+        dest: /etc/netplan/00-installer-config.yaml
+        content: |
+          network:
+            bonds:
+              bond0:
+                dhcp4: true
+                dhcp6: true
+                interfaces:
+                - eno1
+                - eno2
+                - eno3
+                - eno4
+                parameters:
+                  mode: 802.3ad
+                  transmit-hash-policy: layer3+4
+                  mii-monitor-interval: 1
+            ethernets:
+              eno1: {}
+              eno2: {}
+              eno3: {}
+              eno4: {}
+            version: 2
+
+      register: netplan_conf
+
+    - name: Restart networking
+      reboot:
+        reboot_timeout: 500
