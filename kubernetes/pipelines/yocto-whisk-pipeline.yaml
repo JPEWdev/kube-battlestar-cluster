@@ -107,6 +107,7 @@ spec:
           value: "joshuawatt/crops:ubuntu-20.04-base"
         - name: submoduleRemote
           value: "$(params.submoduleRemote)"
+
     - name: validate
       taskRef:
         name: yocto-whisk-validate
@@ -118,6 +119,7 @@ spec:
       params:
         - name: subdirectory
           value: "$(params.subdirectory)"
+
     - name: build
       taskRef:
         name: yocto-whisk-build
