@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: yocto-hashserv
+  labels:
+    app: yocto-hashserv
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: yocto-hashserv
+  template:
+    metadata:
+      labels:
+        app: yocto-hashserv
+    spec:
+      volumes:
+        - name: cache-volume
+          persistentVolumeClaim:
+            claimName: yocto-cache-volume-claim
+      containers:
+        - name: hashserv
+          image: joshuawatt/bbhashserv:2021.2.3.1
+          args:
+            - '--bind=:8686'
+            - '--database=/mnt/cache/hashserv.db'
+          ports:
+            - containerPort: 8686
+          volumeMounts:
+            - mountPath: "/mnt/cache"
+              name: cache-volume
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "1"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: yocto-hashserv
+spec:
+  selector:
+    app: yocto-hashserv
+  ports:
+    - name: hashserv
+      port: 8686

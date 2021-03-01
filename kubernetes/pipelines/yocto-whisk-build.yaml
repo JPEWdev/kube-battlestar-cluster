@@ -52,6 +52,10 @@ spec:
       description: build niceness
       type: string
       default: "10"
+    - name: hashServer
+      description: Hash equivalence server address
+      type: string
+      default: ""
   stepTemplate:
     resources:
       requests:
@@ -96,6 +100,13 @@ spec:
 
         BB_TASK_NICE_LEVEL = "$(params.nice)"
         HEREDOC
+
+        if [ -n "$(params.hashServer)" ]; then
+          cat >> conf/local.conf <<HEREDOC
+        BB_HASHSERVE = "$(params.hashServer)"
+        BB_SIGNATURE_HANDLER = "OEEquivHash"
+        HEREDOC
+        fi
 
         bitbake $(params.buildTargets)
       volumeMounts:

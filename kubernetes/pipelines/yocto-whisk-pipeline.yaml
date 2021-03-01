@@ -53,6 +53,10 @@ spec:
       description: Use submodule remote tracking branches instead of recorded SHA-1
       type: string
       default: "false"
+    - name: hashServer
+      description: Hash equivalence server address
+      type: string
+      default: ""
     - name: labgridProxy
       description: Labgrid SSH Proxy
       type: string
@@ -141,6 +145,8 @@ spec:
           value: "false"
         - name: subdirectory
           value: "$(params.subdirectory)"
+        - name: hashServer
+          value: "$(params.hashServer)"
 
     - name: labgrid-reserve
       taskRef:

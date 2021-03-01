@@ -23,3 +23,5 @@ resources:
   - yocto-doom-demo-user.yaml
   - labgrid-reserve.yaml
   - ingress.yaml
+  - black-check-pipeline.yaml
+  - hashserv.yaml

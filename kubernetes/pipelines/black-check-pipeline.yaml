@@ -1,0 +1,56 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: black-check-pipeline
+  namespace: yocto-build
+spec:
+  params:
+    - name: url
+      description: git url to clone
+      type: string
+    - name: revision
+      description: git revision to checkout (branch, tag, sha, ref…)
+      type: string
+      default: ""
+    - name: refspec
+      description: (optional) git refspec to fetch before checking out revision
+      type: string
+      default: ""
+    - name: depth
+      description: shallow clone depth
+      type: string
+      default: "1"
+  workspaces:
+    - name: build-workspace
+      description: The build workspace
+  tasks:
+    - name: clone
+      taskRef:
+        name: git-clone
+      workspaces:
+        - name: output
+          workspace: build-workspace
+      params:
+        - name: url
+          value: "$(params.url)"
+        - name: revision
+          value: "$(params.revision)"
+        - name: refspec
+          value: "$(params.refspec)"
+        - name: submodules
+          value: "false"
+        - name: depth
+          value: "$(params.depth)"
+    - name: black
+      taskRef:
+        name: black
+      runAfter:
+        - clone
+      workspaces:
+        - name: shared-workspace
+          workspace: build-workspace
+      params:
+        - name: args
+          value: ["--check", "."]
+
+

@@ -44,6 +44,8 @@ spec:
       value: "ci/{{ product }}"
     - name: labgridEnvFile
       value: "ci/{{ product }}/env.yaml"
+    - name: hashServer
+      value: "yocto-hashserv:8686"
   workspaces:
     - name: build-workspace
       subPath: build
@@ -65,3 +67,30 @@ spec:
 {%- endfor %}
 {%- endfor %}
 {%- endfor %}
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: check-
+  namespace: yocto-build
+spec:
+  serviceAccountName: yocto-doom-demo-user
+  pipelineRef:
+    name: black-check-pipeline
+  params:
+    - name: url
+      value: https://github.com/JPEWdev/yocto-doom-demo.git
+    - name: revision
+      value: main
+  workspaces:
+    - name: build-workspace
+      subPath: build
+      volumeClaimTemplate:
+        spec:
+          storageClassName: rook-ceph-block-fast
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 64Gi
+  timeout: 10h
