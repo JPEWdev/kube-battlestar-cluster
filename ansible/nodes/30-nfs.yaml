@@ -16,6 +16,30 @@
         state: present
         update_cache: true
 
+    - name: "Partition /dev/sdd"
+      community.general.parted:
+        device: '/dev/sdd'
+        number: 1
+        state: present
+        part_start: 0%
+        part_end: 100%
+        fs_type: ext4
+        label: gpt
+
+    - name: "Format partition /dev/sdd1"
+      community.general.filesystem:
+        dev: '/dev/sdd1'
+        fstype: ext4
+        resizefs: yes
+
+    - name: "Mount partition /dev/sdd1"
+      ansible.posix.mount:
+        src: '/dev/sdd1'
+        path: '/srv/nfs'
+        state: mounted
+        fstype: ext4
+        boot: yes
+
     - name: create data directory
       file:
         path: /srv/nfs/kubedata
