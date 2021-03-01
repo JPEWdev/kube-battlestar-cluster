@@ -1,0 +1,26 @@
+- hosts: nodes
+  become: yes
+  tasks:
+    - name: Install LVM
+      apt:
+        name: lvm2
+        state: present
+        update_cache: true
+
+    - name: Load RBD module
+      community.general.modprobe:
+        name: rbd
+        state: present
+
+    - name: Enable kernel RBD on boot
+      copy:
+        dest: /etc/modules-load.d/k8s-rbd.conf
+        content: |
+          rbd
+
+    - name: Create rook state directory
+      ansible.builtin.file:
+        path: /var/lib/rook
+        state: directory
+        mode: '0755'
+

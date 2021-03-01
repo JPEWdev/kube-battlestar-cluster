@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+commonLabels:
+  battlestar/app: rook
+
+resources:
+  - "http://raw.githubusercontent.com/rook/rook/release-1.5/cluster/examples/kubernetes/ceph/crds.yaml"
+  - "http://raw.githubusercontent.com/rook/rook/release-1.5/cluster/examples/kubernetes/ceph/common.yaml"
+  - "http://raw.githubusercontent.com/rook/rook/release-1.5/cluster/examples/kubernetes/ceph/operator.yaml"
+  - "https://raw.githubusercontent.com/rook/rook/release-1.5/cluster/examples/kubernetes/ceph/toolbox.yaml"
+  - cluster.yaml
+  - fast-storage.yaml
+  - storage.yaml

@@ -87,7 +87,7 @@ spec:
       subPath: build
       volumeClaimTemplate:
         spec:
-          storageClassName: rook-ceph-block-fast
+          storageClassName: fast-disks
           accessModes:
             - ReadWriteOnce
           resources:
