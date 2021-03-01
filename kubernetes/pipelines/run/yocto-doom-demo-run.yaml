@@ -1,4 +1,4 @@
-{%- for product in ["qemux86-64", "raspberrypi4", "raspberrypi3", "rockpi4", "tinkerboard"] %}
+{%- for product in ["qemux86-64", "raspberrypi4", "raspberrypi3", "rockpi4", "tinkerboard", "rockpix"] %}
 {%- for version in ["default", "hardknott"] %}
 {%- for upstream in [false, true] %}
 ---
