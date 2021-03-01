@@ -52,5 +52,5 @@ spec:
         export LG_DEPLOY_DIR="$WHISK_DEPLOY_DIR_BASE"
 
         cd $(workspaces.build.path)/$(params.subdirectory)
-        pytest --lg-env=$(params.envFile) $(params.testDirectory)
+        pytest -v --lg-env=$(params.envFile) $(params.testDirectory)
 
