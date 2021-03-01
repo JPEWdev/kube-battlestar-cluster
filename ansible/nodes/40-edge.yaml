@@ -205,6 +205,11 @@
       shell: |
         kubectl taint nodes --overwrite $(echo {{ inventory_hostname }} | cut -f1 -d.) edgetype=labgrid:NoExecute
 
+    - name: Create gpio group
+      group:
+        name: gpio
+        state: present
+
     - name: Create labgrid user
       user:
         name: labgrid
@@ -212,6 +217,7 @@
         shell: /bin/bash
         groups:
           - plugdev
+          - gpio
 
     - name: Add admin SSH key to labgrid user
       authorized_key:
@@ -254,6 +260,7 @@
           - libpopt-dev
           - build-essential
           - pkg-config
+          - socat
         state: present
         update_cache: true
 
@@ -273,11 +280,30 @@
       args:
         creates: /usr/local/bin/sd-mux-ctrl
 
-    - name: Labgrid cache cleanup
+    - name: Labgrid cache cleanup cron job
       cron:
         name: "Cleanup labgrid"
         minute: "0"
         job: "find /var/cache/labgrid/ -type f -mmin +60 -delete"
+
+    - name: Labgrid Connect Helper
+      get_url:
+        url: https://raw.githubusercontent.com/labgrid-project/labgrid/ab7f8fc52b905e9e0025b0a05ca0b60ce99b473d/helpers/labgrid-bound-connect
+        checksum: sha256:853f5fa305d620d79ce8abfe4e447330b942f301f849cd952dd81b600e0cbed2
+        dest: /usr/local/sbin/labgrid-bound-connect
+        mode: '0755'
+
+    - name: Write labgrid connect helper sudoers
+      copy:
+        dest: /etc/sudoers.d/labgrid-connect-helper
+        content: |
+          labgrid ALL = NOPASSWD: /usr/local/sbin/labgrid-bound-connect
+
+    - name: Add sbin to labgrid user PATH
+      lineinfile:
+        path: /home/labgrid/.bashrc
+        line: 'PATH=$PATH:/sbin:/usr/sbin'
+        insertbefore: BOF
 
 - hosts: pdudaemon
   become: yes
