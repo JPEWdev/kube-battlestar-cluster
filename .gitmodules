@@ -1,0 +1,3 @@
+[submodule "kube-dump"]
+	path = kube-dump
+	url = https://github.com/WoozyMasta/kube-dump.git
