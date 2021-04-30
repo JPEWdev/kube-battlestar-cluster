@@ -11,3 +11,4 @@ resources:
 
 # Note: You have to manually install kubevirt once, but after that it will be
 # tied to the version of the operator
+# kubectl create -f https://github.com/kubevirt/kubevirt/releases/download/v0.38.1/kubevirt-cr.yaml
