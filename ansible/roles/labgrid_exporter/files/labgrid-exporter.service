@@ -1,0 +1,27 @@
+[Unit]
+Description=Labgrid Exporter
+After=docker.service
+Requires=docker.service
+RequiresMountsFor=/run/udev
+RequiresMountsFor=/dev/bus/usb
+
+[Service]
+TimeoutStartSec=0
+Restart=always
+Environment=IMAGE=joshuawatt/labgrid-exporter:2021.2.25.2
+ExecStartPre=-/usr/bin/docker kill %n
+ExecStartPre=-/usr/bin/docker rm %n
+ExecStartPre=/usr/bin/docker pull $IMAGE
+ExecStart=/usr/bin/docker run --rm --name %n \
+    --mount type=bind,source=/etc/labgrid/exporter.yaml,target=/opt/conf/exporter.yaml,readonly \
+    --mount type=bind,source=/dev/bus/usb,target=/dev/bus/usb,readonly \
+    --mount type=bind,source=/run/udev,target=/run/udev,readonly \
+    --mount type=bind,source=/var/cache/labgrid,target=/var/cache/labgrid \
+    --privileged \
+    --net=host \
+    $IMAGE /entrypoint.sh -x ws://192.168.1.200:20408/ws --isolated
+
+ExecStop=/usr/bin/docker kill %n
+
+[Install]
+WantedBy=default.target

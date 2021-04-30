@@ -1,0 +1,63 @@
+- name: install NFS server
+  become: true
+  apt:
+    name: nfs-kernel-server
+    state: present
+    update_cache: true
+
+- name: "Partition {{ nfsdisk }}"
+  become: true
+  community.general.parted:
+    device: '{{ nfsdisk }}'
+    number: 1
+    state: present
+    part_start: 0%
+    part_end: 100%
+    fs_type: ext4
+    label: gpt
+
+- name: "Format partition {{ nfsdisk }}1"
+  become: true
+  community.general.filesystem:
+    dev: '/dev/sdd1'
+    fstype: ext4
+    resizefs: yes
+
+- name: "Mount partition {{ nfsdisk }}1"
+  become: true
+  ansible.posix.mount:
+    src: '{{ nfsdisk }}1'
+    path: '/srv/nfs'
+    state: mounted
+    fstype: ext4
+    boot: yes
+
+- name: Create data directory
+  become: true
+  file:
+    path: /srv/nfs/kubedata
+    state: directory
+    owner: nobody
+    group: nogroup
+
+- name: Create yocto cache
+  become: true
+  file:
+    path: /srv/nfs/yocto-cache
+    state: directory
+    mode: '0777'
+
+- name: Configure exports
+  become: true
+  copy:
+    content: |
+      /srv/nfs/kubedata    *(rw,sync,no_subtree_check,no_root_squash,no_all_squash,insecure)
+      /srv/nfs/yocto-cache *(rw,sync,no_subtree_check,no_root_squash,no_all_squash,insecure)
+    dest: /etc/exports
+  register: exports
+
+- name: Refresh exports
+  become: true
+  shell: exportfs -rav
+  when: exports.changed
+

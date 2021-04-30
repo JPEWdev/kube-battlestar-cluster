@@ -13,7 +13,7 @@ for h in "$@"; do
 done
 
 cd $THIS_DIR
-ansible-playbook --user adama --ask-become-pass -i $TEMP_HOSTS initial.yaml
+ansible-playbook --user adama --ask-become-pass -i $TEMP_HOSTS managed.yaml
 
 rm -rf $TEMP_HOSTS
 

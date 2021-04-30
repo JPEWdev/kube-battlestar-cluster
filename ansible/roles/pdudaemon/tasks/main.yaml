@@ -1,0 +1,32 @@
+- name: Install PDU Daemon service file
+  become: true
+  copy:
+    dest: /etc/systemd/system/pdudaemon.service
+    src: ../files/pdudaemon.service
+    mode: '0644'
+  register: pdudaemon_service
+
+- name: Make PDU Daemon configuration directory
+  become: true
+  file:
+    path: /etc/pdudaemon
+    state: directory
+    mode: '0755'
+
+- name: Copy PDU Daemon configuration
+  become: true
+  copy:
+    dest: /etc/pdudaemon/pdudaemon.conf
+    src: ../../../host_files/{{ inventory_hostname }}/pdudaemon.conf
+    mode: '0644'
+  register: pdudaemon_conf
+
+- name: Start PDU Daemon
+  become: true
+  systemd:
+    name: pdudaemon
+    daemon_reload: yes
+    state: "{{ 'restarted' if pdudaemon_service.changed or pdudaemon_conf.changed else 'started' }}"
+    enabled: true
+
+

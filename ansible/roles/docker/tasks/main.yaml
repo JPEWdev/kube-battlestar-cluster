@@ -1,0 +1,35 @@
+- name: Install docker
+  become: true
+  apt:
+    name: docker.io
+    state: present
+
+- name: Create Docker config directory
+  become: true
+  file:
+    path: /etc/docker/
+    state: directory
+    mode: '0755'
+
+- name: Configure Docker
+  become: true
+  copy:
+    content: |
+      {
+        "exec-opts": ["native.cgroupdriver=systemd"],
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "100m"
+        },
+        "storage-driver": "overlay2"
+      }
+    dest: /etc/docker/daemon.json
+  register: docker_conf
+
+- name: Start Docker
+  become: true
+  systemd:
+    name: docker
+    daemon_reload: yes
+    state: "{{ 'reloaded' if docker_conf.changed else 'started' }}"
+    enabled: true

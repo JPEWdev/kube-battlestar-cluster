@@ -1,0 +1,28 @@
+- name: Create Certificate Authority Directory
+  ansible.builtin.file:
+    path: $HOME/ca
+    state: directory
+    mode: 0700
+
+- name: Create Certificate Authority Clients Directory
+  ansible.builtin.file:
+    path: $HOME/ca/clients
+    state: directory
+    mode: 0700
+
+- name: Generate Certificate Authority Key
+  shell:
+    cmd: |
+      openssl req -x509 -sha256 -newkey rsa:4096 -keyout ca.key -out ca.crt -days 356 -nodes -subj '/CN=wattissoftware.com'
+    chdir: $HOME/ca
+  args:
+    creates: $HOME/ca/ca.key
+  register: ca_key
+
+- name: Import CA certificate to Kubernetes
+  shell:
+    cmd: |
+      kubectl create secret generic client-ca --from-file=ca.crt=ca.crt --dry-run -o yaml | kubectl apply -f -
+    chdir: $HOME/ca
+  when: ca_key.changed
+

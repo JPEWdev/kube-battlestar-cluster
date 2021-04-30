@@ -1,0 +1,134 @@
+- name: Install Labgrid remote dependencies
+  become: true
+  apt:
+    state: present
+    name:
+      - python3-usb
+      - socat
+      - gstreamer1.0-tools
+      - gstreamer1.0-plugins-good
+      - gstreamer1.0-plugins-bad
+      - gstreamer1.0-plugins-ugly
+      - gstreamer1.0-vaapi
+      - bmap-tools
+      - socat
+      # Build depenedencies
+      - cmake
+      - libftdi1-dev
+      - libpopt-dev
+      - build-essential
+      - pkg-config
+
+- name: Add UDEV rules for Labgrid Exporters
+  become: true
+  copy:
+    dest: /etc/udev/rules.d/99-labgrid.rules
+    content: |
+      # USB Relay
+      SUBSYSTEM=="usb", ATTR{idVendor}=="16c0", ATTR{idProduct}=="05df", MODE="777"
+
+      # SD-Wire
+      SUBSYSTEM=="usb", ATTR{idVendor}=="04e8", ATTR{idProduct}=="6001", MODE:="0666", GROUP:="labgrid"
+      SUBSYSTEM=="block", SUBSYSTEMS=="usb", ATTRS{idVendor}=="0424", ATTRS{idProduct}=="4050", PROGRAM="/bin/chmod 666 /sys/class/block/%k/size", MODE:="0660", GROUP:="labgrid"
+    mode: '0644'
+  register: udev_rule
+
+- name: Remove bad GPIO udev rule
+  become:
+  file:
+    path: /lib/udev/rules.d/60-rpi.gpio-common.rules
+    state: absent
+
+- name: Restart udev
+  become: true
+  shell: |
+    udevadm control --reload-rules
+    udevadm trigger
+  when: udev_rule.changed
+
+- name: Install sd-mux-ctrl
+  become: true
+  shell: |
+    set -e
+    cd $HOME
+    rm -rf sd-mux
+    git clone https://git.tizen.org/cgit/tools/testlab/sd-mux
+    git -C sd-mux checkout 9dd189d973da64e033a0c5c2adb3d94b23153d94
+    mkdir sd-mux/build
+    cd sd-mux/build
+    cmake ..
+    make
+    make install
+    cd $HOME
+    rm -rf sd-mux
+  args:
+    creates: /usr/local/bin/sd-mux-ctrl
+
+- name: Install Labgrid connect helper
+  become: true
+  get_url:
+    url: https://raw.githubusercontent.com/labgrid-project/labgrid/ab7f8fc52b905e9e0025b0a05ca0b60ce99b473d/helpers/labgrid-bound-connect
+    checksum: sha256:853f5fa305d620d79ce8abfe4e447330b942f301f849cd952dd81b600e0cbed2
+    dest: /usr/local/sbin/labgrid-bound-connect
+    mode: '0755'
+
+- name: Write Labgrid connect helper sudoers file
+  become: true
+  copy:
+    dest: /etc/sudoers.d/labgrid-connect-helper
+    content: |
+      labgrid ALL = NOPASSWD: /usr/local/sbin/labgrid-bound-connect
+
+- name: Add sbin to labgrid user PATH
+  become: true
+  lineinfile:
+    path: /home/labgrid/.bashrc
+    line: 'PATH=$PATH:/sbin:/usr/sbin'
+    insertbefore: BOF
+
+- name: Create Labgrid cache
+  become: true
+  file:
+    path: /var/cache/labgrid
+    state: directory
+    mode: '1777'
+
+# Delete anything in the Labgrid cache over 7 days old. Check once every hour.
+# Keeps the cache from growing unbounded
+- name: Labgrid cache cleanup cron job
+  cron:
+    name: "Cleanup Labgrid Cache"
+    minute: "00"
+    job: "find /var/cache/labgrid/ -type f -ctime +7 -delete"
+
+- name: Install Exporter service file
+  become: true
+  copy:
+    dest: /etc/systemd/system/labgrid-exporter.service
+    src: ../files/labgrid-exporter.service
+    mode: '0644'
+  register: exporter_service
+
+- name: Make Labgrid configuration directory
+  become: true
+  file:
+    path: /etc/labgrid
+    state: directory
+    mode: '0755'
+
+- name: Copy Labgrid exporter configuration
+  become: true
+  copy:
+    src: ../../../host_files/{{ inventory_hostname }}/exporter.yaml
+    dest: /etc/labgrid/exporter.yaml
+    mode: '0644'
+  register: exporter_conf
+
+- name: Start Labgrid Exporter
+  become: true
+  systemd:
+    name: labgrid-exporter
+    daemon_reload: yes
+    state: "{{ 'restarted' if exporter_service.changed or exporter_conf.changed else 'started' }}"
+    enabled: true
+

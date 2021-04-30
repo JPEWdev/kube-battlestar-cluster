@@ -1,0 +1,24 @@
+- name: Check if joined to cluster
+  become: true
+  stat:
+    path: $HOME/node_joined.txt
+  register: node_joined
+
+- name: Join cluster
+  block:
+    - name: Get join command
+      delegate_to: galactica.local
+      become: yes
+      shell: kubeadm token create --print-join-command
+      register: join_command_raw
+
+    - name: Join cluster
+      become: true
+      shell: |
+        set -eu
+        {{ join_command_raw.stdout_lines[0] }}
+        touch node_joined.txt
+      args:
+        chdir: $HOME
+  when: not node_joined.stat.exists
+

@@ -1,0 +1,4 @@
+- hosts: labgrid_coordinator
+  roles:
+    - docker
+    - labgrid_coordinator

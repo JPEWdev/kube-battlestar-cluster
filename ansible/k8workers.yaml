@@ -1,0 +1,6 @@
+- hosts: k8workers
+  roles:
+    - k8node
+    - k8worker
+    - k8csr
+

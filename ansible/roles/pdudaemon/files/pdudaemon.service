@@ -1,0 +1,26 @@
+[Unit]
+Description=PDU Daemon
+After=docker.service
+Requires=docker.service
+RequiresMountsFor=/run/udev
+RequiresMountsFor=/dev/bus/usb
+
+[Service]
+TimeoutStartSec=0
+Restart=always
+Environment=IMAGE=joshuawatt/pdudaemon:2020.12.14.1
+ExecStartPre=-/usr/bin/docker kill %n
+ExecStartPre=-/usr/bin/docker rm %n
+ExecStartPre=/usr/bin/docker pull $IMAGE
+ExecStart=/usr/bin/docker run --rm --name %n \
+    --mount type=bind,source=/etc/pdudaemon/pdudaemon.conf,target=/config/pdudaemon.conf,readonly \
+    --mount type=bind,source=/dev/bus/usb,target=/dev/bus/usb,readonly \
+    --mount type=bind,source=/run/udev,target=/run/udev,readonly \
+    --privileged \
+    -p 16421:16421 \
+    $IMAGE
+ExecStop=/usr/bin/docker kill %n
+
+[Install]
+WantedBy=default.target
+

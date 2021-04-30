@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coordinator-labgrid-proxy
+  labels:
+    app: coordinator-labgrid-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: coordinator-labgrid-proxy
+  template:
+    metadata:
+      labels:
+        app: coordinator-labgrid-proxy
+    spec:
+      containers:
+        - name: piping-tunnel-client
+          image: joshuawatt/piping-tunnel:2021.1.6.2
+          args: ["client",
+                 "--server", "https://pipe.wattissoftware.com",
+                 "--port", "22",
+                 "--yamux", "ssh-coordinator-labgrid",
+                ]
+          ports:
+            - containerPort: 22
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coordinator-labgrid
+spec:
+  selector:
+    app: coordinator-labgrid-proxy
+  ports:
+    - protocol: TCP
+      port: 22
+

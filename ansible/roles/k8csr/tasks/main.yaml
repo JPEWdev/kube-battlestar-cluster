@@ -1,0 +1,36 @@
+- name: Install jq
+  become: true
+  ansible.builtin.apt:
+    pkg:
+      - jq
+    state: present
+    update_cache: true
+
+- name: Bootstrap TLS
+  become: true
+  lineinfile:
+    path: /var/lib/kubelet/config.yaml
+    regexp: "^serverTLSBootstrap:"
+    line: "serverTLSBootstrap: true"
+  register: kubelet_config
+
+- block:
+  - name: Restart kubelet
+    become: true
+    systemd:
+      name: kubelet
+      state: restarted
+
+  - name: Approve certificate
+    delegate_to: galactica.local
+    become: true
+    shell: |
+      set -eu
+      sleep 30
+      CERT="$(kubectl get csr -o json | jq -r '[.items[] | select(.spec.username=="system:node:{{ hostvars[inventory_hostname]['ansible_facts']['hostname'] }}")][0].metadata.name')"
+      echo "CERT=$CERT"
+      test -n "$CERT"
+      kubectl certificate approve $CERT
+
+  when: kubelet_config.changed
+

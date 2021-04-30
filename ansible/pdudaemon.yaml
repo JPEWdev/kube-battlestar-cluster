@@ -1,0 +1,4 @@
+- hosts: pdudaemon
+  roles:
+    - docker
+    - pdudaemon

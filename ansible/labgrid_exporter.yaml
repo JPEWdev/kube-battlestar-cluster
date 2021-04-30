@@ -1,0 +1,5 @@
+- hosts: labgrid_exporter
+  roles:
+    - docker
+    - labgrid_exporter
+

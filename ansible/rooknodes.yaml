@@ -1,0 +1,4 @@
+- hosts: rooknodes
+  roles:
+    - rook
+

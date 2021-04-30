@@ -1,0 +1,11 @@
+- import_playbook: managed.yaml
+- import_playbook: k8masters.yaml
+- import_playbook: k8workers.yaml
+- import_playbook: rooknodes.yaml
+- import_playbook: local_storage.yaml
+- import_playbook: nfsservers.yaml
+- import_playbook: labgrid_coordinator.yaml
+- import_playbook: labgrid_exporter.yaml
+- import_playbook: ssh_piping_server.yaml
+- import_playbook: pdudaemon.yaml
+

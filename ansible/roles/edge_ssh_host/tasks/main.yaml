@@ -1,0 +1,39 @@
+- name: Get ssh host key
+  shell: |
+    cat /etc/ssh/ssh_host_ecdsa_key.pub | cut -f1,2 -d' '
+  become: no
+  register: hostkey
+  changed_when: false
+
+- name: Dump known hosts
+  delegate_to: galactica.local
+  become: yes
+  run_once: true
+  shell: |
+    kubectl get secret -n yocto-build labgrid-ssh-key -o jsonpath='{.data.known_hosts}' | base64 -d > $HOME/labgrid_hosts
+  changed_when: false
+
+- name: Ensure host key in known_hosts
+  delegate_to: galactica.local
+  become: yes
+  lineinfile:
+    path: ~/labgrid_hosts
+    regexp: '^{{ inventory_hostname }}.labgrid'
+    line: '{{ inventory_hostname }}.labgrid {{ hostkey.stdout }}'
+    insertafter: EOF
+  register: labgrid_hosts
+
+- name: Add host to secret annotations
+  delegate_to: galactica.local
+  become: yes
+  shell: |
+    kubectl patch secret -n yocto-build labgrid-ssh-key -p '{"metadata":{"annotations":{"tekton.dev/git-{{ inventory_hostname }}.labgrid": "{{ inventory_hostname }}.labgrid"}}}'
+  when: labgrid_hosts.changed
+
+- name: Update labgrid hosts
+  delegate_to: galactica.local
+  become: yes
+  run_once: true
+  shell: |
+    kubectl patch secret -n yocto-build labgrid-ssh-key -p "{\"data\":{\"known_hosts\":\"$(base64 -w 0 $HOME/labgrid_hosts)\"}}"
+  when: labgrid_hosts.changed

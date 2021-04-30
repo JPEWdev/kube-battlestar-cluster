@@ -1,0 +1,172 @@
+- name: Install node dependencies
+  become: true
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - nfs-common
+    state: present
+
+- name: Load bridge kernel module
+  become: yes
+  community.general.modprobe:
+    name: bridge
+    state: present
+
+- name: Load br_netfilter kernel module
+  become: yes
+  community.general.modprobe:
+    name: br_netfilter
+    state: present
+
+- name: Load overlay kernel module
+  become: yes
+  community.general.modprobe:
+    name: overlay
+    state: present
+
+- name: Enable kernel modules on boot
+  become: yes
+  copy:
+    dest: /etc/modules-load.d/cri-o.conf
+    content: |
+      br_netfilter
+      bridge
+      overlay
+
+- name: Bridge iptable
+  become: yes
+  ansible.posix.sysctl:
+    name: net.bridge.bridge-nf-call-iptables
+    value: '1'
+    sysctl_file: /etc/sysctl.d/cri-o.conf
+
+- name: Bridge ip6table
+  become: yes
+  ansible.posix.sysctl:
+    name: net.bridge.bridge-nf-call-ip6tables
+    value: '1'
+    sysctl_file: /etc/sysctl.d/cri-o.conf
+
+- name: Enable IP forwarding
+  become: yes
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_file: /etc/sysctl.d/cri-o.conf
+
+- name: Get Kubernetes verison
+  become: yes
+  shell: |
+    dpkg -s kubelet 2> /dev/null | grep '^Version:' | sed 's/^Version:\s*//'
+  register: current_k8s_version
+  changed_when: false
+  failed_when: false
+
+- name: Get CRI-O version
+  become: yes
+  shell: |
+    dpkg -s cri-o 2> /dev/null | grep '^Version:' | sed 's/^Version:\s*//'
+  register: current_k8s_version
+  changed_when: false
+  failed_when: false
+
+- name: Add CRI-O APT key
+  become: yes
+  ansible.builtin.apt_key:
+    url: 'https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/{{crio_os}}/Release.key'
+
+- name: Add CRI-O APT repo
+  become: yes
+  ansible.builtin.apt_repository:
+    repo: 'deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/{{crio_os}}/ /'
+    filename: 'devel:kubic:libcontainers:stable.list'
+
+- name: Add CRI-O APT key
+  become: yes
+  ansible.builtin.apt_key:
+    url: 'https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:{{crio_version}}/{{crio_os}}/Release.key'
+
+- name: Add CRI-O APT repo
+  become: yes
+  ansible.builtin.apt_repository:
+    repo: 'deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/{{crio_version}}/{{crio_os}}/ /'
+    filename: 'devel:kubic:libcontainers:stable:cri-o:{{crio_version}}.list'
+
+- name: Install CRI-O
+  become: true
+  ansible.builtin.apt:
+    name:
+      - cri-o
+      - cri-o-runc
+    state: present
+    update_cache: true
+
+- name: Start CRI-O
+  become: true
+  ansible.builtin.systemd:
+    name: crio
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Check swap status
+  become: yes
+  shell: swapon -s
+  register: swap_status
+  changed_when: false
+
+- name: Disable SWAP since kubernetes can't work with swap enabled (1/2)
+  become: yes
+  shell: |
+    swapoff -a
+  when: swap_status.stdout | length > 0
+
+- name: Disable SWAP in fstab since kubernetes can't work with swap enabled (2/2)
+  become: yes
+  replace:
+    path: /etc/fstab
+    regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+    replace: '# \1'
+
+    #- hosts: raspbian
+    #  become: yes
+    #  tasks:
+    #    - name: Disable swap file
+    #      systemd:
+    #        name: dphys-swapfile
+    #        state: stopped
+    #        enabled: no
+
+- name: Add Kubernetes APT key
+  become: true
+  ansible.builtin.apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    state: present
+
+- name: Add Kubernetes APT repository
+  become: true
+  ansible.builtin.apt_repository:
+    repo: deb http://apt.kubernetes.io/ kubernetes-xenial main
+    state: present
+    filename: 'kubernetes'
+
+- name: Install Kubernetes tools
+  become: true
+  ansible.builtin.apt:
+    pkg:
+      - 'kubelet={{k8s_version}}'
+      - 'kubeadm={{k8s_version}}'
+      - 'kubectl={{k8s_version}}'
+    state: present
+    update_cache: true
+    force: true
+
+- name: Mark Kubernetes packages
+  become: true
+  dpkg_selections:
+    name: '{{ item }}'
+    selection: hold
+  with_items:
+    - kubelet
+    - kubeadm
+    - kubectl

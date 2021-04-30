@@ -1,0 +1,92 @@
+tinkerboard:
+  USBSerialPort:
+    match:
+      ID_SERIAL_SHORT: tinkerboard
+  USBSDWireDevice:
+    match:
+      ID_SERIAL_SHORT: tinkerboard
+  PDUDaemonPort:
+    host: pegasus-labgrid.local
+    pdu: relay
+    index: 4
+  NetworkService:
+    address: fe80::e9d:92ff:fe0c:5837%eth1
+    username: root
+
+rockpi4:
+  USBSerialPort:
+    match:
+      ID_SERIAL_SHORT: AL062QT9
+    speed: 1500000
+  USBSDWireDevice:
+    match:
+      ID_SERIAL_SHORT: rock-pi-4
+  PDUDaemonPort:
+    host: pegasus-labgrid.local
+    pdu: relay
+    index: 1
+  NetworkService:
+    address: fe80::fca8:61ff:fe4c:67f2%eth1
+    username: root
+
+rockpix:
+  USBSerialPort:
+    match:
+      ID_SERIAL_SHORT: AQ00KVXX
+  USBSDWireDevice:
+    match:
+      ID_SERIAL_SHORT: rock-pi-x
+  PDUDaemonPort:
+    host: pegasus-labgrid.local
+    pdu: relay
+    index: 8
+  NetworkService:
+    address: fe80::2e0:4cff:fe88:35d%eth1
+    username: root
+
+raspberrypi3:
+  USBSerialPort:
+    match:
+      ID_SERIAL_SHORT: raspberrypi3
+  USBSDWireDevice:
+    match:
+      ID_SERIAL_SHORT: raspberrypi3
+  PDUDaemonPort:
+    host: pegasus-labgrid.local
+    pdu: relay
+    index: 6
+  NetworkService:
+    address: fe80::ba27:ebff:fe8a:6dd1%eth1
+    username: root
+
+raspberrypi4:
+  USBSerialPort:
+    match:
+      ## Oops :)
+      ID_SERIAL_SHORT: rock-pi-4b
+  USBSDWireDevice:
+    match:
+      ID_SERIAL_SHORT: raspberrypi4
+  PDUDaemonPort:
+    host: pegasus-labgrid.local
+    pdu: relay
+    index: 5
+  NetworkService:
+    address: fe80::dea6:32ff:fe47:cace%eth1
+    username: root
+
+pineh64:
+  USBSerialPort:
+    match:
+      ID_SERIAL_SHORT: pineh64
+  USBSDWireDevice:
+    match:
+      ID_SERIAL_SHORT: pineh64
+  PDUDaemonPort:
+    host: pegasus-labgrid.local
+    pdu: relay
+    index: 2
+  NetworkService:
+    address: fe80::7:71ff:fef8:6c51%eth1
+    username: root
+

@@ -1,0 +1,88 @@
+- name: Bind mount state directories
+  become: true
+  # See https://github.com/kubernetes/kubernetes/issues/94335
+  ansible.posix.mount:
+    src: /var/lib/kubelet
+    path: /var/lib/kubelet
+    opts: bind
+    state: mounted
+    fstype: none
+
+- name: Create cluster config file
+  become: true
+  copy:
+    dest: $HOME/cluster.yaml
+    content: |
+      apiVersion: kubelet.config.k8s.io/v1beta1
+      kind: KubeletConfiguration
+      cgroupDriver: systemd
+      ---
+      apiVersion: kubeadm.k8s.io/v1beta2
+      kind: ClusterConfiguration
+      networking:
+        podSubnet: 10.244.0.0/16
+
+- name: Initialize the cluster
+  become: true
+  shell: |
+    set -eu
+    kubeadm init --config $HOME/cluster.yaml
+    touch cluster_initialized.txt
+    # We could probably figure out when this is done by parsing some JSON
+    # from kubectl... or just sleep for a few minutes
+    sleep 120
+  args:
+    chdir: $HOME
+    creates: cluster_initialized.txt
+
+- name: Create .kube directory
+  become: yes
+  become_user: '{{ item }}'
+  file:
+    path: $HOME/.kube
+    state: directory
+    mode: 0755
+  with_items:
+    - adama
+    - root
+
+- name: Copy admin.conf to user's kube config
+  become: true
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "{{ item.home }}/.kube/config"
+    remote_src: true
+    owner: '{{ item.name }}'
+    mode: "0600"
+  with_items:
+    - name: adama
+      home: /home/adama
+    - name: root
+      home: /root
+
+- name: Install Pod network
+  become: true
+  shell: |
+    set -eu
+    kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+    #kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+    touch pod_network_setup.txt
+    sleep 5
+    while kubectl get pods -A --no-headers -o custom-columns=':{.status.phase}' | grep -v "Running"; do
+      sleep 10
+    done
+  args:
+    chdir: $HOME
+    creates: pod_network_setup.txt
+
+- name: Allow scheduling on the master node
+  become: true
+  shell: |
+    set -eu
+    kubectl taint nodes --all node-role.kubernetes.io/master-
+    touch remove_taint.txt
+  args:
+    chdir: $HOME
+    creates: remove_taint.txt
+
+

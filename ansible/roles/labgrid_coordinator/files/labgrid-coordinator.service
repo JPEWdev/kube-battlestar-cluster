@@ -1,0 +1,21 @@
+[Unit]
+Description=Labgrid Coordinator
+After=docker.service
+Requires=docker.service
+
+[Service]
+TimeoutStartSec=0
+Restart=always
+Environment=IMAGE=joshuawatt/labgrid-coordinator:2021.2.25.2
+ExecStartPre=-/usr/bin/docker kill %n
+ExecStartPre=-/usr/bin/docker rm %n
+ExecStartPre=/usr/bin/docker pull $IMAGE
+ExecStart=/usr/bin/docker run --rm --name %n \
+    --mount source=coordinator-crossbar,target=/opt/crossbar \
+    -p 20408:20408 \
+    $IMAGE
+ExecStop=/usr/bin/docker kill %n
+
+[Install]
+WantedBy=default.target
+

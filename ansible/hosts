@@ -1,37 +1,33 @@
-[nodes]
+[k8masters]
+galactica.local
+
+[k8workers]
+starbuck.local
+viper.local
+
+[rooknodes]
 galactica.local
 starbuck.local
 viper.local
 
-[masters]
-galactica.local
+[local_storage]
+galactica.local localdisk=/dev/sdb localcount=10
+starbuck.local localdisk=/dev/sdb localcount=10
+viper.local localdisk=/dev/sdb localcount=10
 
-[workers]
-starbuck.local
-viper.local
-
-[edge]
-# All Edge nodes
-coordinator-labgrid
-pegasus-labgrid
-
-[raspbian]
-pegasus-labgrid
+[nfsservers]
+galactica.local nfsdisk=/dev/sdd
 
 [labgrid_coordinator]
-# Nodes that are Labgrid Coordinators
+coordinator-labgrid
+
+[ssh_piping_server]
 coordinator-labgrid
 
 [labgrid_exporter]
-# Nodes that are Labgrid Exporters
 pegasus-labgrid
 
 [pdudaemon]
-# Nodes that run PDUDaemon
-pegasus-labgrid
-
-[pirate_exporter]
-# The node that is the exporter for the pirate boards
 pegasus-labgrid
 
 [dell_r610]
@@ -42,3 +38,6 @@ viper.local
 [all:vars]
 ansible_python_interpreter=/usr/bin/python3
 ansible_user=adama
+crio_version="1.20"
+crio_os=xUbuntu_20.04
+k8s_version="1.20.0-00"

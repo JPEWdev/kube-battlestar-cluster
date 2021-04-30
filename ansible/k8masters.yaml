@@ -1,0 +1,6 @@
+- hosts: k8masters
+  roles:
+    - k8node
+    - k8master
+    - k8csr
+    - ca

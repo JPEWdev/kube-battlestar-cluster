@@ -1,0 +1,17 @@
+- name: Install Labgrid Coordinator service file
+  become: true
+  copy:
+    dest: /etc/systemd/system/labgrid-coordinator.service
+    src: ../files/labgrid-coordinator.service
+    mode: '0644'
+  register: coordinator_service
+
+- name: Start Labgrid Coordinator
+  become: true
+  systemd:
+    name: labgrid-coordinator
+    daemon_reload: yes
+    state: "{{ 'restarted' if coordinator_service.changed else 'started' }}"
+    enabled: true
+
+
