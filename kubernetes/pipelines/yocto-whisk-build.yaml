@@ -60,10 +60,10 @@ spec:
     resources:
       requests:
         cpu: "10"
-        memory: "12Gi"
+        memory: "20Gi"
       limits:
         cpu: "10"
-        memory: "12Gi"
+        memory: "20Gi"
   steps:
     - name: build
       image: joshuawatt/crops:ubuntu-20.04-base
