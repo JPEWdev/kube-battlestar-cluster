@@ -1,0 +1,117 @@
+- name: Assign static IP address to '{{ hostvars[inventory_hostname].internal_intf }}'
+  become: true
+  copy:
+    dest: /etc/netplan/50-internal.yaml
+    content: |
+      network:
+        version: 2
+        ethernets:
+          {{ hostvars[inventory_hostname].internal_intf }}:
+            addresses:
+              - 192.168.100.1/24
+            dhcp4: false
+  register: internal_intf_conf
+
+- name: Apply netplan
+  become: true
+  shell: |
+    netplan generate
+    netplan apply
+  when: internal_intf_conf.changed
+
+- name: Install DHCP server
+  become: true
+  apt:
+    name: isc-dhcp-server
+    state: present
+
+- name: Configure DHCP server interfaces
+  become: true
+  lineinfile:
+    path: /etc/default/isc-dhcp-server
+    regexp: '^{{item}}=.*'
+    line: '{{item}}="{{ hostvars[inventory_hostname].internal_intf }}"'
+  with_items:
+    - "INTERFACESv6"
+    - "INTERFACESv4"
+    - "INTERFACES"
+  register: dhcp_intf_conf
+
+- name: Configure DHCP server
+  become: true
+  copy:
+    dest: /etc/dhcp/dhcpd.conf
+    content: |
+      default-lease-time 600;
+      max-lease-time 7200;
+      ddns-update-style none;
+
+      subnet 192.168.100.0 netmask 255.255.255.0 {
+        range 192.168.100.10 192.168.100.100;
+        option subnet-mask 255.255.255.0;
+        option broadcast-address 192.168.100.255;
+        option routers 192.168.100.1;
+        option domain-name-servers 8.8.8.8 8.8.4.4;
+      }
+  register: dhcp_conf
+
+- name: Restart DHCP server
+  become: true
+  systemd:
+    name: isc-dhcp-server
+    daemon_reload: yes
+    state: restarted
+    enabled: true
+  when: dhcp_intf_conf.changed or dhcp_conf.changed
+
+- name: Stop IPv6 DHCP server
+  become: true
+  systemd:
+    name: isc-dhcp-server6
+    state: stopped
+    enabled: false
+
+- name: Enable IP forwarding
+  become: true
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    sysctl_file: /etc/sysctl.d/ip_forward.conf
+
+- name: Install iptables-persistent
+  become: true
+  apt:
+    name: iptables-persistent
+    state: present
+
+- name: Save IPv4 IP tables
+  become: true
+  ansible.builtin.debconf:
+    name: iptables-persistent
+    question: iptables-persistent/autosave_v4
+    value: "true"
+    vtype: select
+
+- name: Save IPv6 IP tables
+  become: true
+  ansible.builtin.debconf:
+    name: iptables-persistent
+    question: iptables-persistent/autosave_v6
+    value: "true"
+    vtype: select
+
+- name: Set IP tables Postrouting
+  become: true
+  ansible.builtin.iptables:
+    table: nat
+    chain: POSTROUTING
+    out_interface: "{{ hostvars[inventory_hostname].external_intf }}"
+    jump: MASQUERADE
+  register: ip_tables_postrouting
+
+# This is what actually saves the IP tables once the values are set in debconf
+- name: Reconfigure persistent IP tables
+  become: true
+  shell:
+    dpkg-reconfigure -f noninteractive iptables-persistent
+  when: ip_tables_postrouting.changed

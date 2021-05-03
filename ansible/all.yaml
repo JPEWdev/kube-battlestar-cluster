@@ -4,8 +4,8 @@
 - import_playbook: rooknodes.yaml
 - import_playbook: local_storage.yaml
 - import_playbook: nfsservers.yaml
+- import_playbook: router.yaml
 - import_playbook: labgrid_coordinator.yaml
 - import_playbook: labgrid_exporter.yaml
 - import_playbook: ssh_piping_server.yaml
 - import_playbook: pdudaemon.yaml
-

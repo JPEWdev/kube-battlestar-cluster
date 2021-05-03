@@ -30,6 +30,9 @@ pegasus-labgrid
 [pdudaemon]
 pegasus-labgrid
 
+[router]
+coordinator-labgrid
+
 [dell_r610]
 galactica.local
 starbuck.local
