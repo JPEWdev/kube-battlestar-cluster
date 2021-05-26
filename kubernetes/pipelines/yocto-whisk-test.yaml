@@ -35,7 +35,7 @@ spec:
         devices.kubevirt.io/kvm: "1"
   steps:
     - name: get-environment
-      image: joshuawatt/crops:ubuntu-20.04-base
+      image: joshuawatt/crops-ubuntu-20.04:2021.5.3.1
       script: |
         cd $(workspaces.build.path)/$(params.subdirectory)
         . $(params.initScript)

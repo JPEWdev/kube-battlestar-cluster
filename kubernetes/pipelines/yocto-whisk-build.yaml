@@ -66,7 +66,7 @@ spec:
         memory: "20Gi"
   steps:
     - name: build
-      image: joshuawatt/crops:ubuntu-20.04-base
+      image: joshuawatt/crops-ubuntu-20.04:2021.5.3.1
       script: |
         NUM_CPUS="10"
 

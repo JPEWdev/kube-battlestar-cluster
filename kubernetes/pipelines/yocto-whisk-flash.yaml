@@ -31,7 +31,7 @@ spec:
         memory: "2Gi"
   steps:
     - name: get-environment
-      image: joshuawatt/crops:ubuntu-20.04-base
+      image: joshuawatt/crops-ubuntu-20.04:2021.5.3.1
       script: |
         NUM_CPUS="1"
 
