@@ -1,6 +1,0 @@
-- hosts: ssh_piping_server
-  roles:
-    - docker
-    - ssh_piping_server
-    - edge_ssh_host
-
