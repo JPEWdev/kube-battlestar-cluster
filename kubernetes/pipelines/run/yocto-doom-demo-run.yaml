@@ -33,7 +33,7 @@ spec:
     - name: submoduleRemote
       value: "{{ 'true' if upstream else 'false' }}"
     - name: labgridProxy
-      value: coordinator-labgrid.labgrid
+      value: coordinator-labgrid.http-tunnel
     - name: labgridProxyUser
       value: labgrid
     - name: labgridDomain

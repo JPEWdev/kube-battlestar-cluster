@@ -1,0 +1,111 @@
+- name: Install HTTP Tunnel Client Service
+  become: true
+  copy:
+    dest: /etc/systemd/system/http-tunnel-client.service
+    src: ../files/http-tunnel-client.service
+    mode: '0644'
+  register: service
+
+- name: Make HTTP Tunnel configuration directory
+  become: true
+  file:
+    path: /etc/tunnel
+    state: directory
+    mode: '0755'
+
+- name: Create Certificate configuration
+  become: true
+  copy:
+    dest: /etc/tunnel/client.conf
+    content: |
+      [ req ]
+      default_bits           = 4096
+      distinguished_name     = req_distinguished_name
+      prompt                 = no
+
+      [ req_distinguished_name ]
+      C                      = US
+      ST                     = Kansas
+      O                      = JPEW
+      CN                     = {{ inventory_hostname }}
+
+- name: Create client key
+  become: true
+  command:
+    argv: [
+        openssl, req,
+        -newkey, "rsa:4096", -nodes,
+        -config, /etc/tunnel/client.conf,
+        -keyout, /etc/tunnel/client.key,
+        -out, /etc/tunnel/client.csr,
+    ]
+    creates: /etc/tunnel/client.key
+
+- name: Check for client certificate
+  become: true
+  stat:
+    path: /etc/tunnel/client.crt
+  register: client_cert
+
+- name: Sign client key
+  block:
+    - name: Transfer signing key to server
+      shell: |
+        scp -3 {{ ansible_user }}@{{ inventory_hostname }}:/etc/tunnel/client.csr \
+               {{ ansible_user }}@galactica.local:/home/adama/tunnel/requests/{{ inventory_hostname }}.csr
+      delegate_to: localhost
+
+    - name: Sign key
+      command:
+        argv: [
+          openssl, ca,
+          -config, caconfig.conf,
+          -batch,
+          -in, "requests/{{ inventory_hostname }}.csr",
+          -out, "signedcerts/{{ inventory_hostname }}.crt",
+        ]
+        chdir: /home/adama/tunnel
+        creates: "/home/adama/tunnel/signedcerts/{{ inventory_hostname }}.crt"
+      delegate_to: galactica.local
+
+    - name: Transfer signed certificate
+      shell: |
+        scp -3 {{ ansible_user }}@galactica.local:/home/adama/tunnel/signedcerts/{{ inventory_hostname }}.crt \
+               {{ ansible_user }}@{{ inventory_hostname }}:/home/{{ ansible_user }}/client.crt
+      delegate_to: localhost
+
+    - name: Copy certificate
+      become: true
+      copy:
+        src: "/home/{{ ansible_user }}/client.crt"
+        dest: /etc/tunnel/client.crt
+        remote_src: yes
+        owner: root
+        group: root
+        mode: '644'
+  when: not client_cert.stat.exists
+
+- name: Copy HTTP Tunnel configuration
+  become: true
+  copy:
+    src: ../../../host_files/{{ inventory_hostname }}/tunnel.yaml
+    dest: /etc/tunnel/tunnel.yaml
+    mode: '0644'
+  register: tunnel_conf
+
+- name: Copy Server CA
+  become: true
+  copy:
+    src: ../files/rootCA.crt
+    dest: /etc/tunnel/rootCA.crt
+    mode: '0644'
+  register: rootCA
+
+- name: Start HTTP Tunnel Client Service
+  become: true
+  systemd:
+    name: http-tunnel-client
+    daemon_reload: yes
+    state: "{{ 'restarted' if service.changed or tunnel_conf.changed or rootCA.changed else 'started' }}"
+    enabled: true
+

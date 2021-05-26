@@ -18,8 +18,8 @@
   become: yes
   lineinfile:
     path: ~/labgrid_hosts
-    regexp: '^{{ inventory_hostname }}.labgrid'
-    line: '{{ inventory_hostname }}.labgrid {{ hostkey.stdout }}'
+    regexp: '^{{ inventory_hostname }}.http-tunnel'
+    line: '{{ inventory_hostname }}.http-tunnel {{ hostkey.stdout }}'
     insertafter: EOF
   register: labgrid_hosts
 
@@ -27,7 +27,7 @@
   delegate_to: galactica.local
   become: yes
   shell: |
-    kubectl patch secret -n yocto-build labgrid-ssh-key -p '{"metadata":{"annotations":{"tekton.dev/git-{{ inventory_hostname }}.labgrid": "{{ inventory_hostname }}.labgrid"}}}'
+    kubectl patch secret -n yocto-build labgrid-ssh-key -p '{"metadata":{"annotations":{"tekton.dev/git-{{ inventory_hostname }}.http-tunnel": "{{ inventory_hostname }}.http-tunnel"}}}'
   when: labgrid_hosts.changed
 
 - name: Update labgrid hosts

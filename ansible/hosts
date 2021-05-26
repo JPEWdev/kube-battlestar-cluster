@@ -21,7 +21,7 @@ galactica.local nfsdisk=/dev/sdd
 [labgrid_coordinator]
 coordinator-labgrid
 
-[ssh_piping_server]
+[http_tunnel]
 coordinator-labgrid
 
 [labgrid_exporter]

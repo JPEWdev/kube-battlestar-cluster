@@ -1,0 +1,24 @@
+[Unit]
+Description=HTTP Tunnel Client
+After=docker.service
+Requires=docker.service
+
+[Service]
+TimeoutStartSec=0
+Restart=always
+Environment=IMAGE=joshuawatt/go-http-tunnel:2021.5.24.1
+ExecStartPre=-/usr/bin/docker kill %n
+ExecStartPre=-/usr/bin/docker rm %n
+ExecStartPre=/usr/bin/docker pull $IMAGE
+ExecStart=/usr/bin/docker run --rm --name %n \
+    --net=host \
+    --entrypoint /go/bin/tunnel \
+    --mount type=bind,source=/etc/tunnel/,target=/etc/tunnel,readonly \
+    $IMAGE \
+    -config /etc/tunnel/tunnel.yaml \
+    start-all 
+
+ExecStop=/usr/bin/docker kill %n
+
+[Install]
+WantedBy=default.target

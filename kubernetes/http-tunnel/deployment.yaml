@@ -1,0 +1,41 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: go-http-tunnel
+spec:
+  selector:
+    matchLabels:
+      app: go-http-tunnel
+  template:
+    metadata:
+      labels:
+        app: go-http-tunnel
+    spec:
+      containers:
+        - name: go-http-tunnel
+          image: joshuawatt/go-http-tunnel:2021.5.24.1
+          command: ["/go/bin/tunneld"]
+          args: [
+            "-rootCA", "/etc/tunneld/ca.crt",
+            "-tlsCrt", "/etc/tunneld/server.crt",
+            "-tlsKey", "/etc/tunneld/server.key",
+            "-tunnelAddr", ":8443",
+          ]
+          ports:
+            - containerPort: 80
+            - containerPort: 443
+            - containerPort: 8443
+            # Client SSH ports
+            - containerPort: 4022
+          resources:
+            limits:
+              memory: "2Gi"
+              cpu: "1"
+          volumeMounts:
+            - name: config
+              mountPath: "/etc/tunneld"
+              readOnly: true
+      volumes:
+        - name: config
+          secret:
+            secretName: tunneld-keys

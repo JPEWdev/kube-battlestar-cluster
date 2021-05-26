@@ -1,0 +1,9 @@
+server_addr: wattissoftware.com:8443
+root_ca: /etc/tunnel/rootCA.crt
+tunnels:
+  ssh:
+    proto: tcp
+    addr: localhost:22
+    remote_addr: 0.0.0.0:4022
+backoff:
+  max_time: 0

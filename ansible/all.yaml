@@ -8,4 +8,5 @@
 - import_playbook: labgrid_coordinator.yaml
 - import_playbook: labgrid_exporter.yaml
 - import_playbook: ssh_piping_server.yaml
+- import_playbook: http_tunnel.yaml
 - import_playbook: pdudaemon.yaml

@@ -8,4 +8,5 @@ resources:
   - nfs-provisioning
   - tekton
   - pipelines
+  - http-tunnel
 
