@@ -1,3 +1,12 @@
 [submodule "kube-dump"]
 	path = kube-dump
 	url = https://github.com/WoozyMasta/kube-dump.git
+[submodule "yocto-dockerfiles"]
+	path = yocto-dockerfiles
+	url = https://github.com/crops/yocto-dockerfiles.git
+[submodule "labgrid"]
+	path = labgrid
+	url = https://github.com/labgrid-project/labgrid.git
+[submodule "pdudaemon"]
+	path = pdudaemon
+	url = https://github.com/pdudaemon/pdudaemon.git

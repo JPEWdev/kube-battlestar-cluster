@@ -1,0 +1,3 @@
+FROM golang:1.16-alpine
+
+RUN go get -u github.com/mmatczuk/go-http-tunnel/cmd/...
