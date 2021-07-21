@@ -1,0 +1,36 @@
+places:
+  rockpix:
+    matches:
+      - "*/rockpix/*"
+    tags:
+      product: rockpix
+
+  raspberrypi4:
+    matches:
+      - "*/raspberrypi4/*"
+    tags:
+      product: raspberrypi4
+
+  rockpi4:
+    matches:
+      - "*/rockpi4/*"
+    tags:
+      product: rockpi4
+
+  raspberrypi3:
+    matches:
+      - "*/raspberrypi3/*"
+    tags:
+      product: raspberrypi3
+
+  tinkerboard:
+    matches:
+      - "*/tinkerboard/*"
+    tags:
+      product: tinkerboard
+
+  pineh64:
+    matches:
+      - "*/pineh64/*"
+    tags:
+      product: pineh64

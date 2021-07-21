@@ -19,19 +19,23 @@ viper.local localdisk=/dev/sdb localcount=10
 galactica.local nfsdisk=/dev/sdd
 
 [labgrid_coordinator]
-coordinator-labgrid
+#coordinator-labgrid
+baltar-bsg-labgrid
 
 [http_tunnel]
-coordinator-labgrid
+#coordinator-labgrid
+baltar-bsg-labgrid
 
 [labgrid_exporter]
-pegasus-labgrid
+#pegasus-labgrid
+baltar-bsg-labgrid
 
 [pdudaemon]
-pegasus-labgrid
+#pegasus-labgrid
+baltar-bsg-labgrid
 
 [router]
-coordinator-labgrid
+#coordinator-labgrid
 
 [dell_r610]
 galactica.local

@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: coordinator-labgrid
+  name: baltar-bsg-labgrid
 spec:
   selector:
     app: go-http-tunnel
@@ -9,3 +9,4 @@ spec:
     - name: ssh
       port: 22
       targetPort: 4022
+

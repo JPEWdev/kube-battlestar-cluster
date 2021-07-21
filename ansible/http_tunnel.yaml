@@ -2,6 +2,3 @@
   roles:
     - docker
     - http_tunnel
-    - edge_ssh_host
-
-

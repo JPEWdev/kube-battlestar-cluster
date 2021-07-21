@@ -2,3 +2,6 @@
 *.bak
 *.log
 data/
+venv/
+.eggs/
+*.egg-info/

@@ -1,3 +1,37 @@
+- name: Create gpio group
+  become: true
+  group:
+    name: gpio
+    state: present
+
+- name: Create labgrid user
+  become: true
+  user:
+    name: labgrid
+    comment: Labgrid User
+    shell: /bin/bash
+    groups:
+      - plugdev
+      - gpio
+
+- name: Add admin SSH key to labgrid user
+  become: true
+  authorized_key:
+    user: labgrid
+    key: '{{ item }}'
+    exclusive: no
+  with_file:
+    - ../../../../keys/id_rsa.pub
+
+- name: Add kubernetes SSH key to labgrid user
+  become: true
+  authorized_key:
+    user: labgrid
+    key: '{{ item }}'
+    exclusive: no
+  with_file:
+    - ../../../../keys/id_rsa_labgrid.pub
+
 - name: Get ssh host key
   shell: |
     cat /etc/ssh/ssh_host_ecdsa_key.pub | cut -f1,2 -d' '
@@ -18,9 +52,14 @@
   become: yes
   lineinfile:
     path: ~/labgrid_hosts
-    regexp: '^{{ inventory_hostname }}.http-tunnel'
-    line: '{{ inventory_hostname }}.http-tunnel {{ hostkey.stdout }}'
+    regexp: '{{ item.regexp }}'
+    line: '{{ item.line }}'
     insertafter: EOF
+  loop:
+    - regexp: '^{{ inventory_hostname }}.http-tunnel '
+      line: '{{ inventory_hostname }}.http-tunnel {{ hostkey.stdout }}'
+    - regexp: '^{{ inventory_hostname }} '
+      line: '{{ inventory_hostname }} {{ hostkey.stdout }}'
   register: labgrid_hosts
 
 - name: Add host to secret annotations
@@ -28,6 +67,7 @@
   become: yes
   shell: |
     kubectl patch secret -n yocto-build labgrid-ssh-key -p '{"metadata":{"annotations":{"tekton.dev/git-{{ inventory_hostname }}.http-tunnel": "{{ inventory_hostname }}.http-tunnel"}}}'
+    kubectl patch secret -n yocto-build labgrid-ssh-key -p '{"metadata":{"annotations":{"tekton.dev/git-{{ inventory_hostname }}": "{{ inventory_hostname }}"}}}'
   when: labgrid_hosts.changed
 
 - name: Update labgrid hosts

@@ -5,8 +5,10 @@
       apt:
         update_cache: true
         upgrade: safe
+      register: update
 
     - name: reboot
       reboot:
         reboot_timeout: 500
+      when: update.changed
 

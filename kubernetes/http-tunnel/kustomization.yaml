@@ -10,5 +10,5 @@ resources:
   - namespace.yaml
   - deployment.yaml
   - node-port.yaml
-  - coordinator-labgrid.yaml
+  - baltar-bsg-labgrid.yaml
 

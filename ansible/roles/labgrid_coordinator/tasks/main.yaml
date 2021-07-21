@@ -14,4 +14,14 @@
     state: "{{ 'restarted' if coordinator_service.changed else 'started' }}"
     enabled: true
 
-
+- name: Configure Labgrid places
+  delegate_to: localhost
+  ansible.builtin.command:
+    argv:
+      - "{{ role_path }}/../../../run-venv"
+      - "{{ role_path }}/../../../labgrid/contrib/sync-places.py"
+      - "--proxy={{ inventory_hostname }}"
+      - "sync"
+      - "{{ role_path }}/../../host_files/{{ inventory_hostname }}/places.yaml"
+  register: result
+  changed_when: result.stdout | length > 0

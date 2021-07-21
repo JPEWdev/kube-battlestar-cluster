@@ -1,4 +1,5 @@
 - hosts: labgrid_coordinator
   roles:
     - docker
+    - labgrid
     - labgrid_coordinator

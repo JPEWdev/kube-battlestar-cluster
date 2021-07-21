@@ -19,7 +19,7 @@ ExecStart=/usr/bin/docker run --rm --name %n \
     --mount type=bind,source=/var/cache/labgrid,target=/var/cache/labgrid \
     --privileged \
     --net=host \
-    $IMAGE /entrypoint.sh -x ws://192.168.1.200:20408/ws --isolated
+    $IMAGE /entrypoint.sh -x ws://localhost:20408/ws --isolated
 
 ExecStop=/usr/bin/docker kill %n
 

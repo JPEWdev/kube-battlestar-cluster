@@ -34,7 +34,7 @@
   register: udev_rule
 
 - name: Remove bad GPIO udev rule
-  become:
+  become: true
   file:
     path: /lib/udev/rules.d/60-rpi.gpio-common.rules
     state: absent
@@ -45,6 +45,27 @@
     udevadm control --reload-rules
     udevadm trigger
   when: udev_rule.changed
+
+- name: Assign IP address to network interfaces
+  become: true
+  copy:
+    dest: /etc/netplan/50-labgrid-interfaces.yaml
+    content: |
+      network:
+        version: 2
+        ethernets:
+          {% for filename in hostvars[inventory_hostname].labgrid_intfs -%}
+          {{ filename }}:
+            dhcp4: false
+          {% endfor %}
+  register: labgrid_intf_conf
+
+- name: Apply netplan
+  become: true
+  shell: |
+    netplan generate
+    netplan apply
+  when: labgrid_intf_conf.changed
 
 - name: Install sd-mux-ctrl
   become: true
