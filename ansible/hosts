@@ -47,4 +47,4 @@ ansible_python_interpreter=/usr/bin/python3
 ansible_user=adama
 crio_version="1.20"
 crio_os=xUbuntu_20.04
-k8s_version="1.20.0-00"
+k8s_version="1.21.1-00"
