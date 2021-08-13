@@ -70,7 +70,7 @@ spec:
       script: |
         NUM_CPUS="10"
 
-        renice -n $(params.nice) -p $$$$
+        renice -n $(params.nice) -p $$
 
         echo $POD_NAME
         cd $(workspaces.build.path)/$(params.subdirectory)

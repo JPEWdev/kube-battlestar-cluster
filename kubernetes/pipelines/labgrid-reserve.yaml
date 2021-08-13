@@ -62,6 +62,7 @@ spec:
         # directory (Tekton resets $HOME, and ssh ignores it), so you must set
         # SSH_HOME before sourcing the environment file :(
         echo 'mkdir -p $SSH_HOME' >> $ENV_FILE
+        echo 'rm -rf $SSH_HOME/.ssh' >> $ENV_FILE
         echo 'ln -sf $(credentials.path)/.ssh $SSH_HOME/.ssh' >> $ENV_FILE
 
         if [ -n "$(params.proxy)" ]; then
