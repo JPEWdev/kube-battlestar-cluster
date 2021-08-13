@@ -119,6 +119,7 @@ spec:
         fi
 
         if $RESERVE; then
+          labgrid-client -v places
           echo "Waiting to reserve $(params.tag)..."
           eval `labgrid-client reserve --shell --wait $(params.tag)`
           echo "Locking $LG_TOKEN..."
