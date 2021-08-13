@@ -10,7 +10,7 @@ tinkerboard:
     pdu: relay
     index: 4
   NetworkService:
-    address: fe80::e9d:92ff:fe0c:5837%enx5c857e30154c
+    address: fe80::e9d:92ff:fe0c:5837%enx5c857e32b145
     username: root
 
 rockpi4:
@@ -26,7 +26,7 @@ rockpi4:
     pdu: relay
     index: 1
   NetworkService:
-    address: fe80::fca8:61ff:fe4c:67f2%enx5c857e30154c
+    address: fe80::fca8:61ff:fe4c:67f2%enx5c857e32b145
     username: root
 
 rockpix:
@@ -41,7 +41,7 @@ rockpix:
     pdu: relay
     index: 8
   NetworkService:
-    address: fe80::2e0:4cff:fe88:35d%enx5c857e30154c
+    address: fe80::2e0:4cff:fe88:35d%enx5c857e32b145
     username: root
 
 raspberrypi3:
@@ -56,7 +56,7 @@ raspberrypi3:
     pdu: relay
     index: 6
   NetworkService:
-    address: fe80::ba27:ebff:fe8a:6dd1%enx5c857e30154c
+    address: fe80::ba27:ebff:fe8a:6dd1%enx5c857e32b145
     username: root
 
 raspberrypi4:
@@ -72,7 +72,7 @@ raspberrypi4:
     pdu: relay
     index: 5
   NetworkService:
-    address: fe80::dea6:32ff:fe47:cace%enx5c857e30154c
+    address: fe80::dea6:32ff:fe47:cace%enx5c857e32b145
     username: root
 
 pineh64:
@@ -87,6 +87,6 @@ pineh64:
     pdu: relay
     index: 2
   NetworkService:
-    address: fe80::7:71ff:fef8:6c51%enx5c857e30154c
+    address: fe80::7:71ff:fef8:6c51%enx5c857e32b145
     username: root
 
