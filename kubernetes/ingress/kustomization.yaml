@@ -5,7 +5,7 @@ commonLabels:
   battlestar/app: ingress
 
 resources:
-  - "https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.41.2/deploy/static/provider/baremetal/deploy.yaml"
+  - "https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.48.1/deploy/static/provider/baremetal/deploy.yaml"
 
 patchesJSON6902:
   - target:
