@@ -10,3 +10,6 @@
 [submodule "pdudaemon"]
 	path = pdudaemon
 	url = https://github.com/pdudaemon/pdudaemon.git
+[submodule "zuul-operator"]
+	path = zuul-operator
+	url = https://opendev.org/zuul/zuul-operator.git
